@@ -171,12 +171,28 @@ async function checkAdmin(telegramId) {
 // Показать экран пользователя
 function showUserScreen() {
     debugLog('Showing user screen', 'info');
-    document.getElementById('userRole').textContent = 'Пользователь';
+    const roleText = window.isWorker ? 'Работник' : 'Пользователь';
+    document.getElementById('userRole').textContent = roleText;
     document.getElementById('userNav').classList.remove('hidden');
     document.getElementById('adminNav').classList.add('hidden');
     
     // Показываем вкладку сканирования по умолчанию
     showUserTab('scan');
+}
+
+// Обновить статус пользователя
+async function refreshUserStatus() {
+    debugLog('Refreshing user status...', 'info');
+    
+    const isAdmin = await checkAdmin(currentUser.id);
+    
+    if (isAdmin) {
+        showAdminPanel();
+    } else {
+        showUserScreen();
+    }
+    
+    if (tg) tg.HapticFeedback.notificationOccurred('success');
 }
 
 // Показать админ-панель

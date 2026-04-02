@@ -23,6 +23,7 @@ body {
 /* Заголовок с аватаром */
 .header {
     margin-bottom: 25px;
+    position: relative;
 }
 
 .user-info {
@@ -34,6 +35,29 @@ body {
     backdrop-filter: blur(10px);
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.refresh-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--tg-theme-text-color, #ffffff);
+    font-size: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.refresh-btn:active {
+    transform: scale(0.9) rotate(180deg);
+    background: var(--tg-theme-button-color, #0a84ff);
 }
 
 .user-avatar {
@@ -505,22 +529,23 @@ body {
     background: rgba(255, 59, 48, 0.1);
     border-radius: 16px;
     border: 2px solid rgba(255, 59, 48, 0.3);
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
-.access-icon {
+.access-denied-icon {
     font-size: 64px;
     margin-bottom: 20px;
 }
 
-.access-denied p {
+.access-denied-text {
     font-size: 16px;
     color: var(--tg-theme-text-color, #ffffff);
-    margin-bottom: 10px;
-}
-
-.access-hint {
-    font-size: 14px;
-    color: var(--tg-theme-hint-color, #8e8e93);
+    line-height: 1.5;
+    max-width: 300px;
 }
 
 /* Debug Console */
