@@ -979,20 +979,17 @@ async function removeWorkerStatus(telegramId) {
 async function deleteUser(telegramId, fullName) {
     const confirmMsg = `Удалить пользователя "${fullName}"?\n\nЭто действие нельзя отменить. Будут удалены:\n- Данные пользователя\n- Все его отметки\n- История опозданий`;
     
-    let confirmed = false;
-    if (tg) {
-        tg.showConfirm(confirmMsg, (result) => {
+    if (tg && tg.showConfirm) {
+        tg.showConfirm(confirmMsg, async (result) => {
             if (result) {
-                performDeleteUser(telegramId);
+                await performDeleteUser(telegramId);
             }
         });
-        return;
     } else {
-        confirmed = confirm(confirmMsg);
-    }
-    
-    if (confirmed) {
-        await performDeleteUser(telegramId);
+        const confirmed = confirm(confirmMsg);
+        if (confirmed) {
+            await performDeleteUser(telegramId);
+        }
     }
 }
 
