@@ -576,23 +576,26 @@ async function generateQR() {
     
     debugLog('Generating QR: ' + qrData, 'info');
 
-    const canvas = document.getElementById('qrCanvas');
+    const qrContainer = document.getElementById('qrCanvas');
     const preview = document.getElementById('qrPreview');
     
     try {
+        // Очищаем предыдущий QR
+        qrContainer.innerHTML = '';
+        
         // Проверяем что библиотека QRCode загружена
         if (typeof QRCode === 'undefined') {
             throw new Error('QRCode library not loaded');
         }
         
-        await QRCode.toCanvas(canvas, qrData, {
+        // Генерируем QR код
+        new QRCode(qrContainer, {
+            text: qrData,
             width: 300,
-            margin: 2,
-            color: {
-                dark: '#000000',
-                light: '#ffffff'
-            },
-            errorCorrectionLevel: 'H'
+            height: 300,
+            colorDark: '#000000',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
         });
         
         preview.classList.remove('hidden');
@@ -610,8 +613,14 @@ async function generateQR() {
 
 // Скачать QR-код
 function downloadQR() {
-    const canvas = document.getElementById('qrCanvas');
+    const qrContainer = document.getElementById('qrCanvas');
+    const canvas = qrContainer.querySelector('canvas');
     const text = document.getElementById('qrText').value.trim();
+    
+    if (!canvas) {
+        alert('Сначала сгенерируйте QR-код');
+        return;
+    }
     
     canvas.toBlob(blob => {
         const url = URL.createObjectURL(blob);
@@ -628,8 +637,14 @@ function downloadQR() {
 
 // Печать QR-кода
 function printQR() {
-    const canvas = document.getElementById('qrCanvas');
+    const qrContainer = document.getElementById('qrCanvas');
+    const canvas = qrContainer.querySelector('canvas');
     const text = document.getElementById('qrText').value.trim();
+    
+    if (!canvas) {
+        alert('Сначала сгенерируйте QR-код');
+        return;
+    }
     
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
