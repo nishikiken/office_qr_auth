@@ -979,9 +979,17 @@ async function removeWorkerStatus(telegramId) {
 async function deleteUser(telegramId, fullName) {
     const confirmMsg = `Удалить пользователя "${fullName}"?\n\nЭто действие нельзя отменить. Будут удалены:\n- Данные пользователя\n- Все его отметки\n- История опозданий`;
     
-    if (tg && tg.showConfirm) {
-        tg.showConfirm(confirmMsg, async (result) => {
-            if (result) {
+    // Telegram WebApp не поддерживает showConfirm в версии 6.0, используем showPopup
+    if (tg && tg.showPopup) {
+        tg.showPopup({
+            title: 'Удалить пользователя?',
+            message: `${fullName}\n\nБудут удалены все данные и история`,
+            buttons: [
+                { id: 'delete', type: 'destructive', text: 'Удалить' },
+                { id: 'cancel', type: 'cancel' }
+            ]
+        }, async (buttonId) => {
+            if (buttonId === 'delete') {
                 await performDeleteUser(telegramId);
             }
         });
