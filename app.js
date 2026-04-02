@@ -364,7 +364,7 @@ function renderLateHistory(logs) {
         return;
     }
 
-    lateEntries.forEach(log => {
+    lateEntries.forEach((log, index) => {
         const item = document.createElement('div');
         item.className = 'history-item late';
         
@@ -377,16 +377,13 @@ function renderLateHistory(logs) {
             hour: '2-digit',
             minute: '2-digit'
         });
-        
-        // Вычисляем опоздание
-        const lateMinutes = (authTime.getHours() - WORK_START_HOUR) * 60 + authTime.getMinutes();
 
         item.innerHTML = `
             <div class="history-item-info">
                 <div class="history-item-date">${dateStr}</div>
-                <div class="history-item-time">Пришел в ${timeStr}</div>
+                <div class="history-item-time">Пришел/Пришла в ${timeStr}</div>
             </div>
-            <div class="history-item-late">+${lateMinutes} мин</div>
+            <div class="history-item-late">${index + 1}</div>
         `;
 
         historyList.appendChild(item);
@@ -653,12 +650,13 @@ async function generateQR() {
             throw new Error('QRCode library not loaded');
         }
         
+        // Стандартные цвета: черный код на белом фоне (для лучшего сканирования)
         new QRCode(qrContainer, {
             text: qrData,
             width: 300,
             height: 300,
-            colorDark: '#e8eaed',
-            colorLight: '#1a1d26',
+            colorDark: '#000000',
+            colorLight: '#ffffff',
             correctLevel: QRCode.CorrectLevel.H
         });
         
