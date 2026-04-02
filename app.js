@@ -215,7 +215,7 @@ function startQRScanner() {
         const readerEl = document.getElementById('qr-reader');
         readerEl.innerHTML = `
             <div class="access-denied">
-                <div class="access-denied-icon">🚫</div>
+                <img src="svgg/block.svg" alt="Block" class="access-denied-icon-svg">
                 <div class="access-denied-text">Вы не идентифицированы как работник, ожидайте выдачи разрешений администратором</div>
             </div>
         `;
@@ -977,27 +977,11 @@ async function removeWorkerStatus(telegramId) {
 }
 
 async function deleteUser(telegramId, fullName) {
-    const confirmMsg = `Удалить пользователя "${fullName}"?\n\nЭто действие нельзя отменить. Будут удалены:\n- Данные пользователя\n- Все его отметки\n- История опозданий`;
+    // Простое подтверждение без использования неподдерживаемых методов
+    const confirmed = confirm(`Удалить пользователя "${fullName}"?\n\nЭто действие нельзя отменить.`);
     
-    // Telegram WebApp не поддерживает showConfirm в версии 6.0, используем showPopup
-    if (tg && tg.showPopup) {
-        tg.showPopup({
-            title: 'Удалить пользователя?',
-            message: `${fullName}\n\nБудут удалены все данные и история`,
-            buttons: [
-                { id: 'delete', type: 'destructive', text: 'Удалить' },
-                { id: 'cancel', type: 'cancel' }
-            ]
-        }, async (buttonId) => {
-            if (buttonId === 'delete') {
-                await performDeleteUser(telegramId);
-            }
-        });
-    } else {
-        const confirmed = confirm(confirmMsg);
-        if (confirmed) {
-            await performDeleteUser(telegramId);
-        }
+    if (confirmed) {
+        await performDeleteUser(telegramId);
     }
 }
 

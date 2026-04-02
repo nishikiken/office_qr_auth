@@ -923,6 +923,12 @@ body {
     margin-bottom: 20px;
 }
 
+.access-denied-icon-svg {
+    width: 64px;
+    height: 64px;
+    margin-bottom: 20px;
+}
+
 .access-denied-text {
     font-size: 15px;
     color: var(--text-primary);
@@ -1339,6 +1345,8 @@ body {
     font-size: 14px;
     cursor: pointer;
     box-sizing: border-box;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .form-date:focus {
@@ -1353,6 +1361,6 @@ body {
 
 @media (max-width: 768px) {
     .form-date {
-        font-size: 16px; /* Предотвращает зум на iOS */
+        font-size: 16px;
     }
 }
