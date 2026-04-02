@@ -712,7 +712,7 @@ async function loadUsers() {
     const { data, error } = await supabase
         .from('qr_auth_users')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false, nullsFirst: false });
 
     if (error) {
         console.error('Ошибка загрузки пользователей:', error);
@@ -738,44 +738,46 @@ function renderUsers(users) {
         const item = document.createElement('div');
         item.className = 'user-item';
         
-        const createdAt = new Date(user.created_at);
-        const dateStr = createdAt.toLocaleDateString('ru-RU', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
-        });
+        let dateStr = 'Дата неизвестна';
+        if (user.created_at) {
+            const createdAt = new Date(user.created_at);
+            dateStr = createdAt.toLocaleDateString('ru-RU', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
 
         const isWorker = user.is_worker || false;
         const isAdmin = user.is_admin || false;
 
         let statusBadge = '';
         if (isAdmin) {
-            statusBadge = '<span class="badge badge-admin">👑 Админ</span>';
+            statusBadge = '<span class="badge badge-admin">Админ</span>';
         } else if (isWorker) {
-            statusBadge = '<span class="badge badge-worker">✅ Работник</span>';
+            statusBadge = '<span class="badge badge-worker">Работник</span>';
         } else {
-            statusBadge = '<span class="badge badge-user">👤 Пользователь</span>';
+            statusBadge = '<span class="badge badge-user">Пользователь</span>';
         }
 
         item.innerHTML = `
             <div class="user-item-header">
                 <div class="user-item-info">
                     <div class="user-item-name">${user.full_name}</div>
-                    <div class="user-item-username">@${user.username || 'без username'}</div>
-                    <div class="user-item-date">Зарегистрирован: ${dateStr}</div>
+                    <div class="user-item-meta">
+                        <span class="user-item-username">@${user.username || 'без username'}</span>
+                        <span class="user-item-separator">•</span>
+                        <span class="user-item-date">${dateStr}</span>
+                    </div>
                 </div>
-                <div class="user-item-badges">
-                    ${statusBadge}
-                </div>
+                ${statusBadge}
             </div>
-            <div class="user-item-actions">
-                ${!isAdmin ? `
-                    <button class="btn-action ${isWorker ? 'btn-danger' : 'btn-success'}" 
-                            onclick="toggleWorkerStatus(${user.telegram_id}, ${isWorker})">
-                        ${isWorker ? '❌ Убрать работника' : '✅ Назначить работником'}
-                    </button>
-                ` : '<div class="admin-note">Админ не может быть изменен</div>'}
-            </div>
+            ${!isAdmin ? `
+                <button class="btn-toggle-worker ${isWorker ? 'active' : ''}" 
+                        onclick="toggleWorkerStatus(${user.telegram_id}, ${isWorker})">
+                    ${isWorker ? 'Убрать работника' : 'Назначить работником'}
+                </button>
+            ` : '<div class="admin-note">Администратор</div>'}
         `;
 
         usersList.appendChild(item);
