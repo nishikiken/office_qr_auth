@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Авторизация</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+</head>
+<body>
+    <!-- Debug Console -->
+    <div id="debug-console" class="debug-console">
+        <div class="debug-header">
+            <span>Debug Console</span>
+            <button onclick="toggleDebugConsole()">✕</button>
+        </div>
+        <div id="debug-content" class="debug-content"></div>
+    </div>
+    <button id="debug-toggle" class="debug-toggle" onclick="toggleDebugConsole()">🐛</button>
+
+    <div class="container" id="mainContainer">
+        <!-- Заголовок с аватаром -->
+        <div class="header">
+            <div class="user-info">
+                <div id="userAvatar" class="user-avatar">👤</div>
+                <div class="user-details">
+                    <h2 id="userName">Загрузка...</h2>
+                    <p id="userRole" class="user-role">Пользователь</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Навигация для обычных пользователей -->
+        <div id="userNav" class="nav-buttons hidden">
+            <button class="nav-btn active" onclick="showUserTab('scan')">
+                <span class="nav-icon">📷</span>
+                <span class="nav-label">Сканировать</span>
+            </button>
+            <button class="nav-btn" onclick="showUserTab('history')">
+                <span class="nav-icon">📊</span>
+                <span class="nav-label">История</span>
+            </button>
+        </div>
+
+        <!-- Навигация для админов -->
+        <div id="adminNav" class="nav-buttons hidden">
+            <button class="nav-btn active" onclick="showAdminTab('logs')">
+                <span class="nav-icon">📋</span>
+                <span class="nav-label">Логи</span>
+            </button>
+            <button class="nav-btn" onclick="showAdminTab('generate')">
+                <span class="nav-icon">🎨</span>
+                <span class="nav-label">Генератор</span>
+            </button>
+        </div>
+
+        <!-- Экран сканирования -->
+        <div id="scanTab" class="tab-content hidden">
+            <div class="scan-card">
+                <div class="scanner-container">
+                    <div id="qr-reader"></div>
+                </div>
+                <div class="scan-info">
+                    <div class="scan-icon">📱</div>
+                    <p>Наведите камеру на QR-код</p>
+                </div>
+            </div>
+            <div id="scanResult" class="result-message hidden"></div>
+        </div>
+
+        <!-- История посещений пользователя -->
+        <div id="historyTab" class="tab-content hidden">
+            <div class="history-filters">
+                <button class="filter-btn active" onclick="filterHistory('week')">Неделя</button>
+                <button class="filter-btn" onclick="filterHistory('month')">Месяц</button>
+                <button class="filter-btn" onclick="filterHistory('all')">Всё время</button>
+            </div>
+            <div id="historyList" class="history-list">
+                <p class="loading">Загрузка...</p>
+            </div>
+        </div>
+
+        <!-- Админ: Логи всех авторизаций -->
+        <div id="logsTab" class="tab-content hidden">
+            <div class="admin-stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="todayCount">0</div>
+                    <div class="stat-label">Сегодня</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="weekCount">0</div>
+                    <div class="stat-label">За неделю</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalCount">0</div>
+                    <div class="stat-label">Всего</div>
+                </div>
+            </div>
+            <div id="authList" class="auth-list">
+                <p class="loading">Загрузка данных...</p>
+            </div>
+        </div>
+
+        <!-- Админ: Генератор QR-кодов -->
+        <div id="generateTab" class="tab-content hidden">
+            <div class="generate-card">
+                <h3>Генератор QR-кодов</h3>
+                <div class="form-group">
+                    <label>Текст для QR-кода</label>
+                    <input type="text" id="qrText" placeholder="Введите текст или ID" value="AUTH_POINT_001">
+                </div>
+                <button class="btn-primary" onclick="generateQR()">
+                    <span>🎨</span> Сгенерировать QR
+                </button>
+                
+                <div id="qrPreview" class="qr-preview hidden">
+                    <canvas id="qrCanvas"></canvas>
+                    <div class="qr-actions">
+                        <button class="btn-secondary" onclick="downloadQR()">
+                            <span>💾</span> Скачать
+                        </button>
+                        <button class="btn-secondary" onclick="printQR()">
+                            <span>🖨️</span> Печать
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+env/
+.Python
+
+# Node
+node_modules/
+package-lock.json
+
+# Build
+dist/
+build/
+
+# Temporary
+*.tmp
+*.temp
