@@ -98,18 +98,8 @@
             <div class="generate-card">
                 <h3>Генератор QR-кодов</h3>
                 <div class="form-group">
-                    <label>Выберите локацию</label>
-                    <select id="qrLocation" class="form-select">
-                        <option value="">-- Выберите --</option>
-                        <option value="ENTRANCE_1">Вход 1</option>
-                        <option value="ENTRANCE_2">Вход 2</option>
-                        <option value="OFFICE_MAIN">Главный офис</option>
-                        <option value="OFFICE_2">Офис 2</option>
-                        <option value="ROOM_101">Комната 101</option>
-                        <option value="ROOM_102">Комната 102</option>
-                        <option value="CHECKPOINT_A">Контрольная точка А</option>
-                        <option value="CHECKPOINT_B">Контрольная точка Б</option>
-                    </select>
+                    <label>Выберите дату</label>
+                    <input type="date" id="qrDate" class="form-date">
                 </div>
                 <button class="btn-primary" onclick="generateQR()">
                     <span>🎨</span> Сгенерировать QR

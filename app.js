@@ -62,6 +62,9 @@ async function init() {
     } else {
         showUserScreen();
     }
+    
+    // Устанавливаем сегодняшнюю дату для генератора
+    setTimeout(setTodayDate, 100);
 }
 
 async function registerUser(user) {
@@ -106,8 +109,11 @@ function showAdminPanel() {
     
     const headerNav = document.getElementById('headerNav');
     headerNav.innerHTML = `
-        <button class="nav-btn active" onclick="showAdminTab('welcome')">Главная</button>
-        <button class="nav-btn" onclick="showAdminTab('logs')">Логи</button>
+        <div class="menu-section">
+            <div class="menu-section-title">Раздел</div>
+            <button class="nav-btn" onclick="showAdminTab('logs', 'attendance')">Отметки</button>
+            <button class="nav-btn" onclick="showAdminTab('logs', 'late')">Опоздания</button>
+        </div>
         <button class="nav-btn" onclick="showAdminTab('users')">Пользователи</button>
         <button class="nav-btn" onclick="showAdminTab('generate')">Генератор</button>
     `;
@@ -137,7 +143,7 @@ function showUserTab(tab) {
     if (tg) tg.HapticFeedback.impactOccurred('light');
 }
 
-function showAdminTab(tab) {
+function showAdminTab(tab, subview) {
     closeMenuOnSelect();
     document.querySelectorAll('.header-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
     event?.target?.classList.add('active');
@@ -151,7 +157,11 @@ function showAdminTab(tab) {
         document.getElementById('adminWelcome').classList.remove('hidden');
     } else if (tab === 'logs') {
         document.getElementById('logsTab').classList.add('active');
-        loadAuthLogs();
+        if (subview) {
+            switchLogSubmenu(subview);
+        } else {
+            loadAuthLogs();
+        }
     } else if (tab === 'users') {
         document.getElementById('usersTab').classList.add('active');
         loadUsers();
@@ -201,19 +211,51 @@ function startQRScanner() {
     
     if (html5QrCode) return;
     
-    html5QrCode = new Html5Qrcode("qr-reader");
+    // Проверяем доступность библиотеки (может быть Html5Qrcode или Html5QrcodeScanner)
+    const QrCodeLib = window.Html5Qrcode || window.Html5QrcodeScanner;
+    if (!QrCodeLib) {
+        console.error('Html5Qrcode library not loaded. Available:', Object.keys(window).filter(k => k.includes('Html5')));
+        showResultMessage('Ошибка загрузки сканера', 'error');
+        return;
+    }
     
-    html5QrCode.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        onScanSuccess,
-        () => {}
-    ).catch(err => {
-        showResultMessage('Не удалось запустить камеру', 'error');
-    });
+    try {
+        html5QrCode = new Html5Qrcode("qr-reader");
+        
+        html5QrCode.start(
+            { facingMode: "environment" },
+            { 
+                fps: 10, 
+                qrbox: { width: 250, height: 250 },
+                aspectRatio: 1.0
+            },
+            onScanSuccess,
+            (errorMessage) => {
+                // Игнорируем ошибки сканирования (когда QR не найден)
+            }
+        ).catch(err => {
+            console.error('Camera error:', err);
+            showResultMessage('Не удалось запустить камеру: ' + err, 'error');
+        });
+    } catch (err) {
+        console.error('Scanner initialization error:', err);
+        showResultMessage('Ошибка инициализации сканера: ' + err, 'error');
+    }
 }
 
 async function onScanSuccess(decodedText) {
+    console.log('QR Scanned:', decodedText);
+    
+    // Останавливаем сканер сразу
+    if (html5QrCode) {
+        try {
+            await html5QrCode.stop();
+        } catch (e) {
+            console.error('Error stopping scanner:', e);
+        }
+        html5QrCode = null;
+    }
+    
     if (!decodedText.startsWith('QR_AUTH_')) {
         showResultMessage('❌ Неверный QR-код', 'error');
         if (tg) tg.HapticFeedback.notificationOccurred('error');
@@ -222,11 +264,6 @@ async function onScanSuccess(decodedText) {
             startQRScanner();
         }, 2000);
         return;
-    }
-    
-    if (html5QrCode) {
-        await html5QrCode.stop();
-        html5QrCode = null;
     }
 
     await sendAuthLog(decodedText);
@@ -594,18 +631,18 @@ function switchLateFilter(period) {
 
 // Генерация QR с уникальным ID
 async function generateQR() {
-    const locationSelect = document.getElementById('qrLocation');
-    const location = locationSelect.value;
+    const dateInput = document.getElementById('qrDate');
+    const selectedDate = dateInput.value;
     
-    if (!location) {
-        if (tg) tg.showAlert('Выберите локацию');
-        else alert('Выберите локацию');
+    if (!selectedDate) {
+        if (tg) tg.showAlert('Выберите дату');
+        else alert('Выберите дату');
         return;
     }
 
     // Генерируем уникальный ID
     const uniqueId = Math.floor(10000 + Math.random() * 90000);
-    const qrData = `QR_AUTH_${location}_${uniqueId}`;
+    const qrData = `QR_AUTH_${selectedDate}_${uniqueId}`;
 
     const qrContainer = document.getElementById('qrCanvas');
     const preview = document.getElementById('qrPreview');
@@ -636,10 +673,19 @@ async function generateQR() {
     }
 }
 
+// Установить сегодняшнюю дату по умолчанию
+function setTodayDate() {
+    const dateInput = document.getElementById('qrDate');
+    if (dateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+    }
+}
+
 function downloadQR() {
     const qrContainer = document.getElementById('qrCanvas');
     const canvas = qrContainer.querySelector('canvas');
-    const location = document.getElementById('qrLocation').value;
+    const date = document.getElementById('qrDate').value;
     
     if (!canvas) {
         alert('Сначала сгенерируйте QR-код');
@@ -650,7 +696,7 @@ function downloadQR() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `qr_${location}_${Date.now()}.png`;
+        a.download = `qr_${date}_${Date.now()}.png`;
         a.click();
         URL.revokeObjectURL(url);
     });
@@ -661,7 +707,7 @@ function downloadQR() {
 function printQR() {
     const qrContainer = document.getElementById('qrCanvas');
     const canvas = qrContainer.querySelector('canvas');
-    const location = document.getElementById('qrLocation').value;
+    const date = document.getElementById('qrDate').value;
     
     if (!canvas) {
         alert('Сначала сгенерируйте QR-код');
@@ -673,7 +719,7 @@ function printQR() {
         <!DOCTYPE html>
         <html>
         <head>
-            <title>QR Code - ${location}</title>
+            <title>QR Code - ${date}</title>
             <style>
                 body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: Arial, sans-serif; }
                 h1 { margin-bottom: 20px; }
@@ -681,7 +727,7 @@ function printQR() {
             </style>
         </head>
         <body>
-            <h1>QR Code: ${location}</h1>
+            <h1>QR Code: ${date}</h1>
             <img src="${canvas.toDataURL()}" alt="QR Code">
         </body>
         </html>
