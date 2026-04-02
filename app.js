@@ -256,6 +256,7 @@ async function onScanSuccess(decodedText) {
         html5QrCode = null;
     }
     
+    // Проверяем формат QR - принимаем оба варианта
     if (!decodedText.startsWith('QR_AUTH_')) {
         showResultMessage('❌ Неверный QR-код', 'error');
         if (tg) tg.HapticFeedback.notificationOccurred('error');
