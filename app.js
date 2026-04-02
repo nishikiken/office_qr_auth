@@ -127,6 +127,7 @@ function showAdminPanel() {
 }
 
 function showUserTab(tab) {
+    closeMenuOnSelect();
     document.querySelectorAll('.header-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
     event?.target?.classList.add('active');
     
@@ -145,6 +146,7 @@ function showUserTab(tab) {
 }
 
 function showAdminTab(tab) {
+    closeMenuOnSelect();
     document.querySelectorAll('.header-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
     event?.target?.classList.add('active');
     
@@ -812,3 +814,24 @@ function hideResultMessage() {
 }
 
 init();
+
+// Мобильное меню
+function toggleMobileMenu() {
+    const nav = document.getElementById('headerNav');
+    const btn = document.getElementById('mobileMenuBtn');
+    
+    nav.classList.toggle('active');
+    btn.classList.toggle('active');
+    
+    if (tg) tg.HapticFeedback.impactOccurred('light');
+}
+
+// Закрываем меню при выборе пункта
+function closeMenuOnSelect() {
+    if (window.innerWidth <= 768) {
+        const nav = document.getElementById('headerNav');
+        const btn = document.getElementById('mobileMenuBtn');
+        nav.classList.remove('active');
+        btn.classList.remove('active');
+    }
+}
