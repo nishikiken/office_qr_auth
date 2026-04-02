@@ -114,11 +114,12 @@ body {
 }
 
 .mobile-menu-btn.active span:nth-child(1) {
-    transform: rotate(45deg) translate(5px, 5px);
+    transform: rotate(45deg) translate(6px, 6px);
 }
 
 .mobile-menu-btn.active span:nth-child(2) {
     opacity: 0;
+    transform: translateX(-10px);
 }
 
 .mobile-menu-btn.active span:nth-child(3) {
@@ -890,14 +891,14 @@ body {
     }
 }
 
-/* Log View Tabs */
-.log-view-tabs {
+/* Log Submenu */
+.log-submenu {
     display: flex;
     gap: 10px;
     margin-bottom: 20px;
 }
 
-.log-view-btn {
+.submenu-btn {
     flex: 1;
     padding: 12px;
     background: var(--bg-card);
@@ -910,11 +911,11 @@ body {
     font-weight: 500;
 }
 
-.log-view-btn:hover {
+.submenu-btn:hover {
     border-color: var(--accent-blue);
 }
 
-.log-view-btn.active {
+.submenu-btn.active {
     background: rgba(79, 143, 247, 0.1);
     border-color: var(--accent-blue);
     color: var(--text-primary);
@@ -1078,4 +1079,26 @@ body {
     font-size: 14px;
     font-weight: 600;
     color: #f44336;
+}
+
+/* Form Select */
+.form-select {
+    width: 100%;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+.form-select option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
 }

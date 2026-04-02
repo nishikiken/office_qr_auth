@@ -59,9 +59,10 @@
 
         <!-- Админ: Логи -->
         <div id="logsTab" class="tab-content hidden">
-            <div class="log-view-tabs">
-                <button class="log-view-btn active" onclick="switchLogView('attendance')">Отметки</button>
-                <button class="log-view-btn" onclick="switchLogView('late')">Опоздания</button>
+            <!-- Подменю: Отметки / Опоздания -->
+            <div class="log-submenu">
+                <button class="submenu-btn active" onclick="switchLogSubmenu('attendance')">Отметки</button>
+                <button class="submenu-btn" onclick="switchLogSubmenu('late')">Опоздания</button>
             </div>
 
             <!-- Отметки -->
@@ -97,8 +98,18 @@
             <div class="generate-card">
                 <h3>Генератор QR-кодов</h3>
                 <div class="form-group">
-                    <label>Текст для QR-кода</label>
-                    <input type="text" id="qrText" placeholder="Например: ENTRANCE_1" value="">
+                    <label>Выберите локацию</label>
+                    <select id="qrLocation" class="form-select">
+                        <option value="">-- Выберите --</option>
+                        <option value="ENTRANCE_1">Вход 1</option>
+                        <option value="ENTRANCE_2">Вход 2</option>
+                        <option value="OFFICE_MAIN">Главный офис</option>
+                        <option value="OFFICE_2">Офис 2</option>
+                        <option value="ROOM_101">Комната 101</option>
+                        <option value="ROOM_102">Комната 102</option>
+                        <option value="CHECKPOINT_A">Контрольная точка А</option>
+                        <option value="CHECKPOINT_B">Контрольная точка Б</option>
+                    </select>
                 </div>
                 <button class="btn-primary" onclick="generateQR()">
                     <span>🎨</span> Сгенерировать QR

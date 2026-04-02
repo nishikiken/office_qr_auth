@@ -106,22 +106,14 @@ function showAdminPanel() {
     
     const headerNav = document.getElementById('headerNav');
     headerNav.innerHTML = `
-        <button class="nav-btn active" onclick="showAdminTab('logs')">Логи</button>
+        <button class="nav-btn active" onclick="showAdminTab('welcome')">Главная</button>
+        <button class="nav-btn" onclick="showAdminTab('logs')">Логи</button>
         <button class="nav-btn" onclick="showAdminTab('users')">Пользователи</button>
         <button class="nav-btn" onclick="showAdminTab('generate')">Генератор</button>
     `;
     
-    // Показываем приветствие только при первом входе
-    if (!hasShownWelcome) {
-        document.getElementById('adminWelcome').classList.remove('hidden');
-        hasShownWelcome = true;
-        setTimeout(() => {
-            document.getElementById('adminWelcome').classList.add('hidden');
-            showAdminTab('logs');
-        }, 3000);
-    } else {
-        showAdminTab('logs');
-    }
+    // Показываем приветствие и НЕ переключаемся автоматически
+    document.getElementById('adminWelcome').classList.remove('hidden');
     
     subscribeToAuthLogs();
 }
@@ -155,7 +147,9 @@ function showAdminTab(tab) {
     document.getElementById('usersTab').classList.remove('active');
     document.getElementById('generateTab').classList.remove('active');
     
-    if (tab === 'logs') {
+    if (tab === 'welcome') {
+        document.getElementById('adminWelcome').classList.remove('hidden');
+    } else if (tab === 'logs') {
         document.getElementById('logsTab').classList.add('active');
         loadAuthLogs();
     } else if (tab === 'users') {
@@ -372,9 +366,9 @@ function filterHistory(period) {
 // Админ: Логи
 let currentDayView = 'today';
 
-function switchLogView(view) {
+function switchLogSubmenu(view) {
     currentLogView = view;
-    document.querySelectorAll('.log-view-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.submenu-btn').forEach(btn => btn.classList.remove('active'));
     event?.target?.classList.add('active');
     
     document.getElementById('attendanceView').classList.toggle('hidden', view !== 'attendance');
@@ -390,7 +384,7 @@ function switchLogView(view) {
 }
 
 async function loadAuthLogs() {
-    switchLogView('attendance');
+    switchLogSubmenu('attendance');
 }
 
 async function loadAttendanceLogs() {
@@ -600,18 +594,18 @@ function switchLateFilter(period) {
 
 // Генерация QR с уникальным ID
 async function generateQR() {
-    const text = document.getElementById('qrText').value.trim();
+    const locationSelect = document.getElementById('qrLocation');
+    const location = locationSelect.value;
     
-    if (!text) {
-        if (tg) tg.showAlert('Введите текст для QR-кода');
-        else alert('Введите текст для QR-кода');
+    if (!location) {
+        if (tg) tg.showAlert('Выберите локацию');
+        else alert('Выберите локацию');
         return;
     }
 
     // Генерируем уникальный ID
     const uniqueId = Math.floor(10000 + Math.random() * 90000);
-    const today = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
-    const qrData = `QR_AUTH_${today}_${text}_${uniqueId}`;
+    const qrData = `QR_AUTH_${location}_${uniqueId}`;
 
     const qrContainer = document.getElementById('qrCanvas');
     const preview = document.getElementById('qrPreview');
@@ -645,7 +639,7 @@ async function generateQR() {
 function downloadQR() {
     const qrContainer = document.getElementById('qrCanvas');
     const canvas = qrContainer.querySelector('canvas');
-    const text = document.getElementById('qrText').value.trim();
+    const location = document.getElementById('qrLocation').value;
     
     if (!canvas) {
         alert('Сначала сгенерируйте QR-код');
@@ -656,7 +650,7 @@ function downloadQR() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `qr_${text}_${Date.now()}.png`;
+        a.download = `qr_${location}_${Date.now()}.png`;
         a.click();
         URL.revokeObjectURL(url);
     });
@@ -667,7 +661,7 @@ function downloadQR() {
 function printQR() {
     const qrContainer = document.getElementById('qrCanvas');
     const canvas = qrContainer.querySelector('canvas');
-    const text = document.getElementById('qrText').value.trim();
+    const location = document.getElementById('qrLocation').value;
     
     if (!canvas) {
         alert('Сначала сгенерируйте QR-код');
@@ -679,7 +673,7 @@ function printQR() {
         <!DOCTYPE html>
         <html>
         <head>
-            <title>QR Code - ${text}</title>
+            <title>QR Code - ${location}</title>
             <style>
                 body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: Arial, sans-serif; }
                 h1 { margin-bottom: 20px; }
@@ -687,7 +681,7 @@ function printQR() {
             </style>
         </head>
         <body>
-            <h1>QR Code: ${text}</h1>
+            <h1>QR Code: ${location}</h1>
             <img src="${canvas.toDataURL()}" alt="QR Code">
         </body>
         </html>
