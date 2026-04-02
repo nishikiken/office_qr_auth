@@ -403,8 +403,12 @@ let currentDayView = 'today';
 
 function switchLogSubmenu(view) {
     currentLogView = view;
-    document.querySelectorAll('.submenu-btn').forEach(btn => btn.classList.remove('active'));
-    event?.target?.classList.add('active');
+    
+    // Обновляем заголовок
+    const titleEl = document.getElementById('currentViewTitle');
+    if (titleEl) {
+        titleEl.textContent = view === 'attendance' ? 'Отметки' : 'Опоздания';
+    }
     
     document.getElementById('attendanceView').classList.toggle('hidden', view !== 'attendance');
     document.getElementById('lateView').classList.toggle('hidden', view !== 'late');
@@ -796,16 +800,68 @@ function renderUsers(users) {
                 </div>
                 ${statusBadge}
             </div>
-            ${!isAdmin ? `
-                <button class="btn-toggle-worker ${isWorker ? 'active' : ''}" 
-                        onclick="toggleWorkerStatus(${user.telegram_id}, ${isWorker})">
-                    ${isWorker ? 'Убрать работника' : 'Назначить работником'}
-                </button>
-            ` : '<div class="admin-note">Администратор</div>'}
+            <div class="user-item-actions">
+                ${!isAdmin ? `
+                    <button class="btn-toggle-worker ${isWorker ? 'active' : ''}" 
+                            onclick="toggleWorkerStatus(${user.telegram_id}, ${isWorker})">
+                        ${isWorker ? 'Убрать работника' : 'Назначить работником'}
+                    </button>
+                    <button class="btn-delete-user" onclick="deleteUser(${user.telegram_id}, '${user.full_name}')">
+                        🗑️ Удалить
+                    </button>
+                ` : '<div class="admin-note">Администратор не может быть удален</div>'}
+            </div>
         `;
 
         usersList.appendChild(item);
     });
+}
+
+async function deleteUser(telegramId, fullName) {
+    const confirmMsg = `Удалить пользователя "${fullName}"?\n\nЭто действие нельзя отменить. Будут удалены:\n- Данные пользователя\n- Все его отметки\n- История опозданий`;
+    
+    let confirmed = false;
+    if (tg) {
+        tg.showConfirm(confirmMsg, (result) => {
+            if (result) {
+                performDeleteUser(telegramId);
+            }
+        });
+        return;
+    } else {
+        confirmed = confirm(confirmMsg);
+    }
+    
+    if (confirmed) {
+        await performDeleteUser(telegramId);
+    }
+}
+
+async function performDeleteUser(telegramId) {
+    // Удаляем логи пользователя
+    const { error: logsError } = await supabase
+        .from('qr_auth_logs')
+        .delete()
+        .eq('user_id', telegramId);
+    
+    if (logsError) {
+        console.error('Error deleting logs:', logsError);
+    }
+    
+    // Удаляем пользователя
+    const { error: userError } = await supabase
+        .from('qr_auth_users')
+        .delete()
+        .eq('telegram_id', telegramId);
+
+    if (userError) {
+        if (tg) tg.showAlert('Ошибка удаления: ' + userError.message);
+        else alert('Ошибка удаления: ' + userError.message);
+        return;
+    }
+    
+    if (tg) tg.HapticFeedback.notificationOccurred('success');
+    loadUsers();
 }
 
 async function toggleWorkerStatus(telegramId, currentStatus) {

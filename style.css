@@ -536,6 +536,12 @@ body {
     color: rgba(255, 255, 255, 0.2);
 }
 
+.user-item-actions {
+    display: flex;
+    gap: 8px;
+    flex-direction: column;
+}
+
 .badge {
     padding: 4px 10px;
     border-radius: 4px;
@@ -593,6 +599,28 @@ body {
 
 .btn-toggle-worker.active:hover {
     border-color: #f44336;
+}
+
+.btn-delete-user {
+    width: 100%;
+    padding: 10px 16px;
+    background: rgba(244, 67, 54, 0.05);
+    border: 1px solid rgba(244, 67, 54, 0.2);
+    border-radius: 6px;
+    color: #f44336;
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-delete-user:hover {
+    background: rgba(244, 67, 54, 0.1);
+    border-color: #f44336;
+}
+
+.btn-delete-user:active {
+    transform: scale(0.98);
 }
 
 .admin-note {
@@ -913,35 +941,16 @@ body {
     }
 }
 
-/* Log Submenu */
-.log-submenu {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.submenu-btn {
-    flex: 1;
-    padding: 12px;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-size: 13px;
-    font-weight: 500;
-}
-
-.submenu-btn:hover {
-    border-color: var(--accent-blue);
-}
-
-.submenu-btn.active {
-    background: rgba(79, 143, 247, 0.1);
-    border-color: var(--accent-blue);
+/* Current View Title */
+.current-view-title {
+    font-size: 20px;
+    font-weight: 600;
     color: var(--text-primary);
+    margin-bottom: 20px;
+    padding: 0 4px;
 }
+
+/* Log Submenu - REMOVED */
 
 /* Day View Tabs */
 .day-view-tabs {
