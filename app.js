@@ -112,6 +112,7 @@ function showAdminPanel() {
         <button class="nav-btn" onclick="showAdminTab('logs', 'attendance')">Отметки</button>
         <button class="nav-btn" onclick="showAdminTab('logs', 'late')">Опоздания</button>
         <button class="nav-btn" onclick="showAdminTab('users')">Пользователи</button>
+        <button class="nav-btn" onclick="showAdminTab('workers')">Работники</button>
         <button class="nav-btn" onclick="showAdminTab('generate')">Генератор</button>
     `;
     
@@ -148,6 +149,7 @@ function showAdminTab(tab, subview) {
     document.getElementById('adminWelcome').classList.add('hidden');
     document.getElementById('logsTab').classList.remove('active');
     document.getElementById('usersTab').classList.remove('active');
+    document.getElementById('workersTab').classList.remove('active');
     document.getElementById('generateTab').classList.remove('active');
     
     if (tab === 'welcome') {
@@ -162,6 +164,9 @@ function showAdminTab(tab, subview) {
     } else if (tab === 'users') {
         document.getElementById('usersTab').classList.add('active');
         loadUsers();
+    } else if (tab === 'workers') {
+        document.getElementById('workersTab').classList.add('active');
+        loadWorkers();
     } else if (tab === 'generate') {
         document.getElementById('generateTab').classList.add('active');
     }
@@ -737,7 +742,7 @@ function printQR() {
     if (tg) tg.HapticFeedback.notificationOccurred('success');
 }
 
-// Управление пользователями
+// Управление пользователями (только назначение работником)
 async function loadUsers() {
     const usersList = document.getElementById('usersList');
     usersList.innerHTML = '<p class="loading">Загрузка...</p>';
@@ -745,14 +750,217 @@ async function loadUsers() {
     const { data } = await supabase
         .from('qr_auth_users')
         .select('*')
+        .eq('is_worker', false)
+        .eq('is_admin', false)
         .order('created_at', { ascending: false, nullsFirst: false });
 
     if (!data || data.length === 0) {
-        usersList.innerHTML = '<div class="empty-state">Пока нет пользователей</div>';
+        usersList.innerHTML = '<div class="empty-state">Нет новых пользователей</div>';
         return;
     }
 
-    renderUsers(data);
+    renderUsersList(data);
+}
+
+function renderUsersList(users) {
+    const usersList = document.getElementById('usersList');
+    usersList.innerHTML = '';
+
+    users.forEach(user => {
+        const item = document.createElement('div');
+        item.className = 'user-item';
+        
+        let dateStr = 'Дата неизвестна';
+        if (user.created_at) {
+            const createdAt = new Date(user.created_at);
+            dateStr = createdAt.toLocaleDateString('ru-RU', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+        }
+
+        item.innerHTML = `
+            <div class="user-item-header">
+                <div class="user-item-info">
+                    <div class="user-item-name">${user.full_name}</div>
+                    <div class="user-item-meta">
+                        <span class="user-item-username">@${user.username || 'без username'}</span>
+                        <span class="user-item-separator">•</span>
+                        <span class="user-item-date">${dateStr}</span>
+                    </div>
+                </div>
+                <span class="badge badge-user">Пользователь</span>
+            </div>
+            <div class="user-item-actions">
+                <button class="btn-toggle-worker" 
+                        onclick="makeWorker(${user.telegram_id})">
+                    Назначить работником
+                </button>
+                <button class="btn-delete-user" onclick="deleteUser(${user.telegram_id}, '${user.full_name.replace(/'/g, "\\'")}')">
+                    <img src="svgg/delete.svg" alt="Delete" class="btn-icon"> Удалить пользователя
+                </button>
+            </div>
+        `;
+
+        usersList.appendChild(item);
+    });
+}
+
+async function makeWorker(telegramId) {
+    const { error } = await supabase
+        .from('qr_auth_users')
+        .update({ is_worker: true })
+        .eq('telegram_id', telegramId);
+
+    if (error) {
+        if (tg) tg.showAlert('Ошибка обновления');
+        else alert('Ошибка обновления');
+        return;
+    }
+    
+    if (tg) tg.HapticFeedback.notificationOccurred('success');
+    loadUsers();
+}
+
+// Управление работниками (редактирование + отнять статус)
+async function loadWorkers() {
+    const workersList = document.getElementById('workersList');
+    workersList.innerHTML = '<p class="loading">Загрузка...</p>';
+
+    const { data } = await supabase
+        .from('qr_auth_users')
+        .select('*')
+        .eq('is_worker', true)
+        .order('full_name', { ascending: true });
+
+    if (!data || data.length === 0) {
+        workersList.innerHTML = '<div class="empty-state">Нет работников</div>';
+        return;
+    }
+
+    renderWorkersList(data);
+}
+
+function renderWorkersList(workers) {
+    const workersList = document.getElementById('workersList');
+    workersList.innerHTML = '';
+
+    workers.forEach(worker => {
+        const item = document.createElement('div');
+        item.className = 'user-item';
+        
+        const displayName = worker.display_name || worker.full_name;
+        const gender = worker.gender || 'M';
+
+        item.innerHTML = `
+            <div class="user-item-header">
+                <div class="user-item-info">
+                    <div class="user-item-name">${displayName}</div>
+                    <div class="user-item-meta">
+                        <span class="user-item-username">@${worker.username || 'без username'}</span>
+                        <span class="user-item-separator">•</span>
+                        <span class="user-item-gender">${gender === 'F' ? 'Ж' : 'М'}</span>
+                    </div>
+                </div>
+                <span class="badge badge-worker">Работник</span>
+            </div>
+            <div class="user-item-actions">
+                <button class="btn-edit-worker" onclick="showEditWorker(${worker.telegram_id}, '${displayName.replace(/'/g, "\\'")}', '${gender}')">
+                    ✏️ Редактировать
+                </button>
+                <button class="btn-toggle-worker active" 
+                        onclick="removeWorkerStatus(${worker.telegram_id})">
+                    Отнять статус
+                </button>
+            </div>
+        `;
+
+        workersList.appendChild(item);
+    });
+}
+
+function showEditWorker(telegramId, currentName, currentGender) {
+    const item = event.target.closest('.user-item');
+    const actionsDiv = item.querySelector('.user-item-actions');
+    
+    actionsDiv.innerHTML = `
+        <div class="edit-form">
+            <div class="form-group-inline">
+                <label>Отображаемое имя</label>
+                <input type="text" id="editName_${telegramId}" class="form-input-inline" value="${currentName}">
+            </div>
+            <div class="form-group-inline">
+                <label>Пол</label>
+                <div class="gender-buttons-inline">
+                    <button class="gender-btn-inline ${currentGender === 'M' ? 'active' : ''}" onclick="selectGenderInline(${telegramId}, 'M')">М</button>
+                    <button class="gender-btn-inline ${currentGender === 'F' ? 'active' : ''}" onclick="selectGenderInline(${telegramId}, 'F')">Ж</button>
+                </div>
+            </div>
+            <div class="edit-actions">
+                <button class="btn-cancel" onclick="loadWorkers()">Отмена</button>
+                <button class="btn-save" onclick="saveWorkerEdit(${telegramId})">Сохранить</button>
+            </div>
+        </div>
+    `;
+    
+    item.dataset.selectedGender = currentGender;
+    if (tg) tg.HapticFeedback.impactOccurred('light');
+}
+
+function selectGenderInline(telegramId, gender) {
+    const item = event.target.closest('.user-item');
+    item.dataset.selectedGender = gender;
+    
+    item.querySelectorAll('.gender-btn-inline').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    if (tg) tg.HapticFeedback.impactOccurred('light');
+}
+
+async function saveWorkerEdit(telegramId) {
+    const item = event.target.closest('.user-item');
+    const displayName = document.getElementById(`editName_${telegramId}`).value.trim();
+    const gender = item.dataset.selectedGender || 'M';
+    
+    if (!displayName) {
+        if (tg) tg.showAlert('Введите имя');
+        else alert('Введите имя');
+        return;
+    }
+    
+    const { error } = await supabase
+        .from('qr_auth_users')
+        .update({ 
+            display_name: displayName,
+            gender: gender
+        })
+        .eq('telegram_id', telegramId);
+
+    if (error) {
+        if (tg) tg.showAlert('Ошибка обновления');
+        else alert('Ошибка обновления');
+        return;
+    }
+    
+    if (tg) tg.HapticFeedback.notificationOccurred('success');
+    loadWorkers();
+}
+
+async function removeWorkerStatus(telegramId) {
+    const { error } = await supabase
+        .from('qr_auth_users')
+        .update({ is_worker: false })
+        .eq('telegram_id', telegramId);
+
+    if (error) {
+        if (tg) tg.showAlert('Ошибка обновления');
+        else alert('Ошибка обновления');
+        return;
+    }
+    
+    if (tg) tg.HapticFeedback.notificationOccurred('success');
+    loadWorkers();
 }
 
 function renderUsers(users) {
@@ -812,6 +1020,53 @@ function renderUsers(users) {
 
         usersList.appendChild(item);
     });
+}
+
+async function deleteUser(telegramId, fullName) {
+    const confirmMsg = `Удалить пользователя "${fullName}"?\n\nЭто действие нельзя отменить. Будут удалены:\n- Данные пользователя\n- Все его отметки\n- История опозданий`;
+    
+    let confirmed = false;
+    if (tg) {
+        tg.showConfirm(confirmMsg, (result) => {
+            if (result) {
+                performDeleteUser(telegramId);
+            }
+        });
+        return;
+    } else {
+        confirmed = confirm(confirmMsg);
+    }
+    
+    if (confirmed) {
+        await performDeleteUser(telegramId);
+    }
+}
+
+async function performDeleteUser(telegramId) {
+    // Удаляем логи пользователя
+    const { error: logsError } = await supabase
+        .from('qr_auth_logs')
+        .delete()
+        .eq('user_id', telegramId);
+    
+    if (logsError) {
+        console.error('Error deleting logs:', logsError);
+    }
+    
+    // Удаляем пользователя
+    const { error: userError } = await supabase
+        .from('qr_auth_users')
+        .delete()
+        .eq('telegram_id', telegramId);
+
+    if (userError) {
+        if (tg) tg.showAlert('Ошибка удаления: ' + userError.message);
+        else alert('Ошибка удаления: ' + userError.message);
+        return;
+    }
+    
+    if (tg) tg.HapticFeedback.notificationOccurred('success');
+    loadUsers();
 }
 
 async function toggleWorkerStatus(telegramId, currentStatus) {

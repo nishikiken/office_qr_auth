@@ -84,12 +84,23 @@
         <!-- Админ: Пользователи -->
         <div id="usersTab" class="tab-content hidden">
             <div class="users-header">
-                <h3>Управление пользователями</h3>
+                <h3>Пользователи</h3>
                 <button class="btn-refresh" onclick="loadUsers()">
                     <img src="svgg/reload.svg" alt="Reload" class="btn-icon"> Обновить
                 </button>
             </div>
             <div id="usersList" class="users-list"></div>
+        </div>
+
+        <!-- Админ: Работники -->
+        <div id="workersTab" class="tab-content hidden">
+            <div class="users-header">
+                <h3>Работники</h3>
+                <button class="btn-refresh" onclick="loadWorkers()">
+                    <img src="svgg/reload.svg" alt="Reload" class="btn-icon"> Обновить
+                </button>
+            </div>
+            <div id="workersList" class="users-list"></div>
         </div>
 
         <!-- Админ: Генератор QR -->
