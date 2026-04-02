@@ -562,6 +562,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .user-item-separator {
@@ -856,7 +857,7 @@ button:focus,
 
 @media (max-width: 768px) {
     .form-group {
-        max-width: calc(100vw - 90px);
+        max-width: calc(100vw - 70px);
     }
     
     .form-group input {
@@ -1042,10 +1043,15 @@ button:focus,
 }
 
 .empty-state::before {
-    content: '📭';
+    content: '';
     display: block;
-    font-size: 48px;
-    margin-bottom: 15px;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 15px;
+    background-image: url('svgg/user-minus.svg');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
 .error {

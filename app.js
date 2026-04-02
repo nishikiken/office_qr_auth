@@ -60,6 +60,8 @@ async function init() {
     const avatarEl = document.getElementById('userAvatar');
     if (user.photo_url) {
         avatarEl.innerHTML = `<img src="${user.photo_url}" alt="Avatar">`;
+    } else {
+        avatarEl.innerHTML = `<img src="svgg/user.svg" alt="User" style="width: 24px; height: 24px; opacity: 0.5;">`;
     }
 
     await registerUser(user);
@@ -348,7 +350,7 @@ async function loadUserLateHistory() {
 
     if (!data || data.length === 0) {
         const periodText = currentFilter === 'week' ? 'на этой неделе' : currentFilter === 'month' ? 'в этом месяце' : 'за все время';
-        historyList.innerHTML = `<div class="empty-state">🎉<br>${periodText.charAt(0).toUpperCase() + periodText.slice(1)} еще не было опозданий, так держать!</div>`;
+        historyList.innerHTML = `<div class="empty-state"><img src="svgg/party.svg" alt="Party" style="width: 48px; height: 48px; margin-bottom: 15px;"><br>${periodText.charAt(0).toUpperCase() + periodText.slice(1)} еще не было опозданий, так держать!</div>`;
         return;
     }
 
@@ -373,7 +375,7 @@ function renderLateHistory(logs) {
     
     if (lateEntries.length === 0) {
         const periodText = currentFilter === 'week' ? 'на этой неделе' : currentFilter === 'month' ? 'в этом месяце' : 'за все время';
-        historyList.innerHTML = `<div class="empty-state">🎉<br>${periodText.charAt(0).toUpperCase() + periodText.slice(1)} не было опозданий, так держать!</div>`;
+        historyList.innerHTML = `<div class="empty-state"><img src="svgg/party.svg" alt="Party" style="width: 48px; height: 48px; margin-bottom: 15px;"><br>${periodText.charAt(0).toUpperCase() + periodText.slice(1)} не было опозданий, так держать!</div>`;
         return;
     }
 
@@ -622,7 +624,7 @@ function renderLateSummary(lateByUser) {
     const users = Object.values(lateByUser).sort((a, b) => b.count - a.count);
     
     if (users.length === 0) {
-        lateList.innerHTML = '<div class="empty-state">🎉<br>Опозданий нет!</div>';
+        lateList.innerHTML = '<div class="empty-state"><img src="svgg/party.svg" alt="Party" style="width: 48px; height: 48px; margin-bottom: 15px;"><br>Опозданий нет!</div>';
         return;
     }
     
@@ -880,7 +882,7 @@ function renderWorkersList(workers) {
             </div>
             <div class="user-item-actions">
                 <button class="btn-edit-worker" onclick="showEditWorker(${worker.telegram_id}, '${displayName.replace(/'/g, "\\'")}', '${gender}')">
-                    ✏️ Редактировать
+                    <img src="svgg/edit.svg" alt="Edit" class="btn-icon"> Редактировать
                 </button>
                 <button class="btn-toggle-worker active" 
                         onclick="removeWorkerStatus(${worker.telegram_id})">
