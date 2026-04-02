@@ -7,6 +7,7 @@ CREATE TABLE qr_auth_users (
     last_name TEXT,
     full_name TEXT,
     is_admin BOOLEAN DEFAULT FALSE,
+    is_worker BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

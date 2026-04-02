@@ -151,7 +151,7 @@ async function registerUser(user) {
 async function checkAdmin(telegramId) {
     const { data, error } = await supabase
         .from('qr_auth_users')
-        .select('is_admin')
+        .select('is_admin, is_worker')
         .eq('telegram_id', telegramId)
         .single();
 
@@ -160,6 +160,10 @@ async function checkAdmin(telegramId) {
         debugLog('Admin check error: ' + error.message, 'error');
         return false;
     }
+
+    // Сохраняем статус работника глобально
+    window.isWorker = data?.is_worker || false;
+    debugLog('Worker status: ' + window.isWorker, 'info');
 
     return data?.is_admin || false;
 }
@@ -234,6 +238,19 @@ function showAdminTab(tab) {
 
 // Запуск QR-сканера
 function startQRScanner() {
+    // Проверяем статус работника
+    if (!window.isWorker) {
+        debugLog('Access denied: not a worker', 'warn');
+        const readerEl = document.getElementById('qr-reader');
+        readerEl.innerHTML = `
+            <div class="access-denied">
+                <div class="access-denied-icon">🚫</div>
+                <div class="access-denied-text">Вы не идентифицированы как работник, ожидайте выдачи разрешений администратором</div>
+            </div>
+        `;
+        return;
+    }
+    
     if (html5QrCode) {
         // Сканер уже запущен
         return;
@@ -261,6 +278,20 @@ function startQRScanner() {
 // Обработка успешного сканирования
 async function onScanSuccess(decodedText, decodedResult) {
     debugLog('QR scanned: ' + decodedText, 'info');
+    
+    // Проверяем префикс QR-кода
+    if (!decodedText.startsWith('QR_AUTH_')) {
+        debugLog('Invalid QR code (no prefix): ' + decodedText, 'warn');
+        showResultMessage('❌ Неверный QR-код. Используйте только коды из системы.', 'error');
+        if (tg) tg.HapticFeedback.notificationOccurred('error');
+        
+        // Перезапускаем сканер через 2 секунды
+        setTimeout(() => {
+            hideResultMessage();
+            startQRScanner();
+        }, 2000);
+        return;
+    }
     
     // Останавливаем сканер
     if (html5QrCode) {
@@ -520,29 +551,40 @@ async function generateQR() {
         return;
     }
 
-    debugLog('Generating QR: ' + text, 'info');
+    // Добавляем префикс для защиты
+    const qrData = 'QR_AUTH_' + text;
+    
+    debugLog('Generating QR: ' + qrData, 'info');
 
     const canvas = document.getElementById('qrCanvas');
     const preview = document.getElementById('qrPreview');
     
     try {
-        await QRCode.toCanvas(canvas, text, {
+        // Проверяем что библиотека QRCode загружена
+        if (typeof QRCode === 'undefined') {
+            throw new Error('QRCode library not loaded');
+        }
+        
+        await QRCode.toCanvas(canvas, qrData, {
             width: 300,
             margin: 2,
             color: {
                 dark: '#000000',
                 light: '#ffffff'
-            }
+            },
+            errorCorrectionLevel: 'H'
         });
         
         preview.classList.remove('hidden');
+        
+        debugLog('QR generated successfully', 'info');
         
         if (tg) tg.HapticFeedback.notificationOccurred('success');
     } catch (err) {
         console.error('Ошибка генерации QR:', err);
         debugLog('QR generation error: ' + err.message, 'error');
-        if (tg) tg.showAlert('Ошибка генерации QR-кода');
-        else alert('Ошибка генерации QR-кода');
+        if (tg) tg.showAlert('Ошибка генерации QR-кода: ' + err.message);
+        else alert('Ошибка генерации QR-кода: ' + err.message);
     }
 }
 

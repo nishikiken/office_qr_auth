@@ -498,6 +498,31 @@ body {
     margin-bottom: 15px;
 }
 
+/* Access Denied */
+.access-denied {
+    text-align: center;
+    padding: 40px 20px;
+    background: rgba(255, 59, 48, 0.1);
+    border-radius: 16px;
+    border: 2px solid rgba(255, 59, 48, 0.3);
+}
+
+.access-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+}
+
+.access-denied p {
+    font-size: 16px;
+    color: var(--tg-theme-text-color, #ffffff);
+    margin-bottom: 10px;
+}
+
+.access-hint {
+    font-size: 14px;
+    color: var(--tg-theme-hint-color, #8e8e93);
+}
+
 /* Debug Console */
 .debug-console {
     position: fixed;
