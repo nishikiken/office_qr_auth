@@ -109,13 +109,10 @@ function showAdminPanel() {
     
     const headerNav = document.getElementById('headerNav');
     headerNav.innerHTML = `
-        <div class="nav-section">
-            <div class="nav-section-title">Логи</div>
-            <button class="nav-btn" onclick="showAdminTab('logs', 'attendance')">Отметки</button>
-            <button class="nav-btn" onclick="showAdminTab('logs', 'late')">Опоздания</button>
-        </div>
+        <button class="nav-btn" onclick="showAdminTab('logs', 'attendance')">Отметки</button>
+        <button class="nav-btn" onclick="showAdminTab('logs', 'late')">Опоздания</button>
         <button class="nav-btn" onclick="showAdminTab('users')">Пользователи</button>
-        <button class="nav-btn" onclick="showAdminTab('generate')">Генератор QR</button>
+        <button class="nav-btn" onclick="showAdminTab('generate')">Генератор</button>
     `;
     
     // Показываем приветствие и НЕ переключаемся автоматически
@@ -778,8 +775,6 @@ function renderUsers(users) {
 
         const isWorker = user.is_worker || false;
         const isAdmin = user.is_admin || false;
-        const displayName = user.display_name || user.full_name;
-        const gender = user.gender || 'M';
 
         let statusBadge = '';
         if (isAdmin) {
@@ -793,27 +788,22 @@ function renderUsers(users) {
         item.innerHTML = `
             <div class="user-item-header">
                 <div class="user-item-info">
-                    <div class="user-item-name">${displayName}</div>
+                    <div class="user-item-name">${user.full_name}</div>
                     <div class="user-item-meta">
                         <span class="user-item-username">@${user.username || 'без username'}</span>
                         <span class="user-item-separator">•</span>
                         <span class="user-item-date">${dateStr}</span>
-                        <span class="user-item-separator">•</span>
-                        <span class="user-item-gender">${gender === 'F' ? 'Ж' : 'М'}</span>
                     </div>
                 </div>
                 ${statusBadge}
             </div>
             <div class="user-item-actions">
                 ${!isAdmin ? `
-                    <button class="btn-edit-user" onclick="editUser(${user.telegram_id}, '${displayName.replace(/'/g, "\\'")}', '${gender}')">
-                        ✏️ Редактировать
-                    </button>
                     <button class="btn-toggle-worker ${isWorker ? 'active' : ''}" 
                             onclick="toggleWorkerStatus(${user.telegram_id}, ${isWorker})">
                         ${isWorker ? 'Отнять статус' : 'Назначить работником'}
                     </button>
-                    <button class="btn-delete-user" onclick="deleteUser(${user.telegram_id}, '${displayName.replace(/'/g, "\\'")}')">
+                    <button class="btn-delete-user" onclick="deleteUser(${user.telegram_id}, '${user.full_name.replace(/'/g, "\\'")}')">
                         <img src="svgg/delete.svg" alt="Delete" class="btn-icon"> Удалить работника
                     </button>
                 ` : '<div class="admin-note">Администратор не может быть удален</div>'}
@@ -822,123 +812,6 @@ function renderUsers(users) {
 
         usersList.appendChild(item);
     });
-}
-
-async function editUser(telegramId, currentName, currentGender) {
-    const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <h3>Редактировать пользователя</h3>
-            <div class="form-group">
-                <label>Отображаемое имя</label>
-                <input type="text" id="editDisplayName" class="form-input" value="${currentName}">
-            </div>
-            <div class="form-group">
-                <label>Пол</label>
-                <div class="gender-buttons">
-                    <button class="gender-btn ${currentGender === 'M' ? 'active' : ''}" onclick="selectGender('M')">М</button>
-                    <button class="gender-btn ${currentGender === 'F' ? 'active' : ''}" onclick="selectGender('F')">Ж</button>
-                </div>
-            </div>
-            <div class="modal-actions">
-                <button class="btn-secondary" onclick="closeEditModal()">Отмена</button>
-                <button class="btn-primary" onclick="saveUserEdit(${telegramId})">Сохранить</button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    window.selectedGender = currentGender;
-    
-    if (tg) tg.HapticFeedback.impactOccurred('light');
-}
-
-function selectGender(gender) {
-    window.selectedGender = gender;
-    document.querySelectorAll('.gender-btn').forEach(btn => btn.classList.remove('active'));
-    event?.target?.classList.add('active');
-    if (tg) tg.HapticFeedback.impactOccurred('light');
-}
-
-function closeEditModal() {
-    const modal = document.querySelector('.modal-overlay');
-    if (modal) modal.remove();
-}
-
-async function saveUserEdit(telegramId) {
-    const displayName = document.getElementById('editDisplayName').value.trim();
-    
-    if (!displayName) {
-        if (tg) tg.showAlert('Введите имя');
-        else alert('Введите имя');
-        return;
-    }
-    
-    const { error } = await supabase
-        .from('qr_auth_users')
-        .update({ 
-            display_name: displayName,
-            gender: window.selectedGender || 'M'
-        })
-        .eq('telegram_id', telegramId);
-
-    if (error) {
-        if (tg) tg.showAlert('Ошибка обновления');
-        else alert('Ошибка обновления');
-        return;
-    }
-    
-    closeEditModal();
-    if (tg) tg.HapticFeedback.notificationOccurred('success');
-    loadUsers();
-}
-
-async function deleteUser(telegramId, fullName) {
-    const confirmMsg = `Удалить пользователя "${fullName}"?\n\nЭто действие нельзя отменить. Будут удалены:\n- Данные пользователя\n- Все его отметки\n- История опозданий`;
-    
-    let confirmed = false;
-    if (tg) {
-        tg.showConfirm(confirmMsg, (result) => {
-            if (result) {
-                performDeleteUser(telegramId);
-            }
-        });
-        return;
-    } else {
-        confirmed = confirm(confirmMsg);
-    }
-    
-    if (confirmed) {
-        await performDeleteUser(telegramId);
-    }
-}
-
-async function performDeleteUser(telegramId) {
-    // Удаляем логи пользователя
-    const { error: logsError } = await supabase
-        .from('qr_auth_logs')
-        .delete()
-        .eq('user_id', telegramId);
-    
-    if (logsError) {
-        console.error('Error deleting logs:', logsError);
-    }
-    
-    // Удаляем пользователя
-    const { error: userError } = await supabase
-        .from('qr_auth_users')
-        .delete()
-        .eq('telegram_id', telegramId);
-
-    if (userError) {
-        if (tg) tg.showAlert('Ошибка удаления: ' + userError.message);
-        else alert('Ошибка удаления: ' + userError.message);
-        return;
-    }
-    
-    if (tg) tg.HapticFeedback.notificationOccurred('success');
-    loadUsers();
 }
 
 async function toggleWorkerStatus(telegramId, currentStatus) {
