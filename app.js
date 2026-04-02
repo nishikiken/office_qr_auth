@@ -149,6 +149,11 @@ function showAdminPanel() {
 }
 
 function showUserTab(tab) {
+    // Проверяем, является ли пользователь работником
+    if (!window.isWorker) {
+        return; // Не даем переключаться между вкладками
+    }
+    
     closeMenuOnSelect();
     document.querySelectorAll('.header-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
     event?.target?.classList.add('active');
@@ -362,8 +367,8 @@ async function loadUserLateHistory() {
     const { data } = await query.limit(50);
 
     if (!data || data.length === 0) {
-        const periodText = currentFilter === 'week' ? 'на этой неделе' : currentFilter === 'month' ? 'в этом месяце' : 'за все время';
-        historyList.innerHTML = `<div class="empty-state"><img src="svgg/party.svg" alt="Party" style="width: 48px; height: 48px; margin-bottom: 15px;"><br>${periodText.charAt(0).toUpperCase() + periodText.slice(1)} еще не было опозданий, так держать!</div>`;
+        const periodText = currentFilter === 'week' ? 'на этой неделе' : 'в этом месяце';
+        historyList.innerHTML = `<div class="empty-state"><img src="svgg/alarm.svg" alt="No late" style="width: 48px; height: 48px; opacity: 0.3; margin-bottom: 15px;"><br>${periodText.charAt(0).toUpperCase() + periodText.slice(1)} еще не было опозданий, так держать!</div>`;
         return;
     }
 
@@ -387,8 +392,8 @@ function renderLateHistory(logs) {
     });
     
     if (lateEntries.length === 0) {
-        const periodText = currentFilter === 'week' ? 'на этой неделе' : currentFilter === 'month' ? 'в этом месяце' : 'за все время';
-        historyList.innerHTML = `<div class="empty-state"><img src="svgg/party.svg" alt="Party" style="width: 48px; height: 48px; margin-bottom: 15px;"><br>${periodText.charAt(0).toUpperCase() + periodText.slice(1)} не было опозданий, так держать!</div>`;
+        const periodText = currentFilter === 'week' ? 'на этой неделе' : 'в этом месяце';
+        historyList.innerHTML = `<div class="empty-state"><img src="svgg/alarm.svg" alt="No late" style="width: 48px; height: 48px; opacity: 0.3; margin-bottom: 15px;"><br>${periodText.charAt(0).toUpperCase() + periodText.slice(1)} не было опозданий, так держать!</div>`;
         return;
     }
 
