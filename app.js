@@ -239,12 +239,16 @@ function showAdminTab(tab) {
     
     // Скрываем все вкладки
     document.getElementById('logsTab').classList.remove('active');
+    document.getElementById('usersTab').classList.remove('active');
     document.getElementById('generateTab').classList.remove('active');
     
     if (tab === 'logs') {
         document.getElementById('logsTab').classList.add('active');
         loadAuthLogs();
         calculateStats();
+    } else if (tab === 'users') {
+        document.getElementById('usersTab').classList.add('active');
+        loadUsers();
     } else if (tab === 'generate') {
         document.getElementById('generateTab').classList.add('active');
     }
@@ -699,3 +703,112 @@ function showError(message) {
 
 // Запуск приложения
 init();
+
+// Загрузка списка пользователей
+async function loadUsers() {
+    const usersList = document.getElementById('usersList');
+    usersList.innerHTML = '<p class="loading">Загрузка...</p>';
+
+    const { data, error } = await supabase
+        .from('qr_auth_users')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('Ошибка загрузки пользователей:', error);
+        debugLog('Users load error: ' + error.message, 'error');
+        usersList.innerHTML = '<p class="error">Ошибка загрузки данных</p>';
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        usersList.innerHTML = '<div class="empty-state">Пока нет пользователей</div>';
+        return;
+    }
+
+    renderUsers(data);
+}
+
+// Отрисовка списка пользователей
+function renderUsers(users) {
+    const usersList = document.getElementById('usersList');
+    usersList.innerHTML = '';
+
+    users.forEach(user => {
+        const item = document.createElement('div');
+        item.className = 'user-item';
+        
+        const createdAt = new Date(user.created_at);
+        const dateStr = createdAt.toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+
+        const isWorker = user.is_worker || false;
+        const isAdmin = user.is_admin || false;
+
+        let statusBadge = '';
+        if (isAdmin) {
+            statusBadge = '<span class="badge badge-admin">👑 Админ</span>';
+        } else if (isWorker) {
+            statusBadge = '<span class="badge badge-worker">✅ Работник</span>';
+        } else {
+            statusBadge = '<span class="badge badge-user">👤 Пользователь</span>';
+        }
+
+        item.innerHTML = `
+            <div class="user-item-header">
+                <div class="user-item-info">
+                    <div class="user-item-name">${user.full_name}</div>
+                    <div class="user-item-username">@${user.username || 'без username'}</div>
+                    <div class="user-item-date">Зарегистрирован: ${dateStr}</div>
+                </div>
+                <div class="user-item-badges">
+                    ${statusBadge}
+                </div>
+            </div>
+            <div class="user-item-actions">
+                ${!isAdmin ? `
+                    <button class="btn-action ${isWorker ? 'btn-danger' : 'btn-success'}" 
+                            onclick="toggleWorkerStatus(${user.telegram_id}, ${isWorker})">
+                        ${isWorker ? '❌ Убрать работника' : '✅ Назначить работником'}
+                    </button>
+                ` : '<div class="admin-note">Админ не может быть изменен</div>'}
+            </div>
+        `;
+
+        usersList.appendChild(item);
+    });
+}
+
+// Переключение статуса работника
+async function toggleWorkerStatus(telegramId, currentStatus) {
+    const newStatus = !currentStatus;
+    
+    debugLog(`Changing worker status for ${telegramId} to ${newStatus}`, 'info');
+
+    const { error } = await supabase
+        .from('qr_auth_users')
+        .update({ is_worker: newStatus })
+        .eq('telegram_id', telegramId);
+
+    if (error) {
+        console.error('Ошибка обновления статуса:', error);
+        debugLog('Status update error: ' + error.message, 'error');
+        if (tg) {
+            tg.showAlert('Ошибка обновления статуса');
+            tg.HapticFeedback.notificationOccurred('error');
+        } else {
+            alert('Ошибка обновления статуса');
+        }
+        return;
+    }
+
+    debugLog('Worker status updated successfully', 'info');
+    
+    if (tg) tg.HapticFeedback.notificationOccurred('success');
+    
+    // Перезагружаем список
+    loadUsers();
+}

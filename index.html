@@ -47,10 +47,14 @@
         </div>
 
         <!-- Навигация для админов -->
-        <div id="adminNav" class="nav-buttons hidden">
+        <div id="adminNav" class="nav-buttons admin-nav hidden">
             <button class="nav-btn active" onclick="showAdminTab('logs')">
                 <span class="nav-icon">📋</span>
                 <span class="nav-label">Логи</span>
+            </button>
+            <button class="nav-btn" onclick="showAdminTab('users')">
+                <span class="nav-icon">👥</span>
+                <span class="nav-label">Пользователи</span>
             </button>
             <button class="nav-btn" onclick="showAdminTab('generate')">
                 <span class="nav-icon">🎨</span>
@@ -102,6 +106,17 @@
             </div>
             <div id="authList" class="auth-list">
                 <p class="loading">Загрузка данных...</p>
+            </div>
+        </div>
+
+        <!-- Админ: Управление пользователями -->
+        <div id="usersTab" class="tab-content hidden">
+            <div class="users-header">
+                <h3>Управление пользователями</h3>
+                <button class="btn-refresh" onclick="loadUsers()">🔄 Обновить</button>
+            </div>
+            <div id="usersList" class="users-list">
+                <p class="loading">Загрузка...</p>
             </div>
         </div>
 
