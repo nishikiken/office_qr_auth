@@ -187,7 +187,7 @@ async function checkTodayAuth() {
         const readerEl = document.getElementById('qr-reader');
         readerEl.innerHTML = `
             <div class="success-day-message">
-                <div class="success-icon">✅</div>
+                <img src="svgg/success.svg" alt="Success" class="success-icon-svg">
                 <div class="success-title">Успешная авторизация!</div>
                 <div class="success-text">Хорошего рабочего дня!</div>
             </div>
@@ -293,7 +293,7 @@ async function sendAuthLog(qrCode) {
         const readerEl = document.getElementById('qr-reader');
         readerEl.innerHTML = `
             <div class="success-day-message">
-                <div class="success-icon">✅</div>
+                <img src="svgg/success.svg" alt="Success" class="success-icon-svg">
                 <div class="success-title">Успешная авторизация!</div>
                 <div class="success-text">Хорошего рабочего дня!</div>
             </div>
@@ -804,10 +804,10 @@ function renderUsers(users) {
                 ${!isAdmin ? `
                     <button class="btn-toggle-worker ${isWorker ? 'active' : ''}" 
                             onclick="toggleWorkerStatus(${user.telegram_id}, ${isWorker})">
-                        ${isWorker ? 'Убрать работника' : 'Назначить работником'}
+                        ${isWorker ? 'Отнять статус' : 'Назначить работником'}
                     </button>
                     <button class="btn-delete-user" onclick="deleteUser(${user.telegram_id}, '${user.full_name}')">
-                        🗑️ Удалить
+                        <img src="svgg/delete.svg" alt="Delete" class="btn-icon"> Удалить работника
                     </button>
                 ` : '<div class="admin-note">Администратор не может быть удален</div>'}
             </div>

@@ -16,12 +16,18 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Unbounded', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 700;
     background: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
     padding-top: 80px;
+}
+
+.user-name, .user-role {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 600;
 }
 
 /* Fixed Header */
@@ -816,7 +822,20 @@ body {
     line-height: 1.6;
 }
 
-/* Loading & Empty States */
+/* Button Icons */
+.btn-icon {
+    width: 16px;
+    height: 16px;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+.success-icon-svg {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 20px;
+}
 .loading {
     text-align: center;
     color: var(--text-secondary);
@@ -1145,9 +1164,11 @@ body {
     color: var(--text-muted);
     text-transform: uppercase;
     letter-spacing: 1px;
-    font-weight: 600;
+    font-weight: 700;
     pointer-events: none;
     background: transparent;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
 }
 
 @media (max-width: 768px) {
@@ -1161,8 +1182,9 @@ body {
         font-size: 13px;
         background: transparent;
         border-radius: 0;
-        margin: 0;
+        margin: 0 0 8px 0;
         text-align: left;
+        border-bottom: 1px solid var(--border-color);
     }
 }
 

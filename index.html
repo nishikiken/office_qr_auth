@@ -85,7 +85,9 @@
         <div id="usersTab" class="tab-content hidden">
             <div class="users-header">
                 <h3>Управление пользователями</h3>
-                <button class="btn-refresh" onclick="loadUsers()">🔄 Обновить</button>
+                <button class="btn-refresh" onclick="loadUsers()">
+                    <img src="svgg/reload.svg" alt="Reload" class="btn-icon"> Обновить
+                </button>
             </div>
             <div id="usersList" class="users-list"></div>
         </div>
@@ -99,17 +101,17 @@
                     <input type="date" id="qrDate" class="form-date">
                 </div>
                 <button class="btn-primary" onclick="generateQR()">
-                    <span>🎨</span> Сгенерировать QR
+                    Сгенерировать QR
                 </button>
                 
                 <div id="qrPreview" class="qr-preview hidden">
                     <div id="qrCanvas" class="qr-canvas-container"></div>
                     <div class="qr-actions">
                         <button class="btn-secondary" onclick="downloadQR()">
-                            <span>💾</span> Скачать
+                            <img src="svgg/download.svg" alt="Download" class="btn-icon"> Скачать
                         </button>
                         <button class="btn-secondary" onclick="printQR()">
-                            <span>🖨️</span> Печать
+                            <img src="svgg/print.svg" alt="Print" class="btn-icon"> Печать
                         </button>
                     </div>
                 </div>
