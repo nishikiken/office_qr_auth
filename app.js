@@ -108,12 +108,25 @@ function showUserScreen() {
     document.getElementById('userRole').textContent = roleText;
     
     const headerNav = document.getElementById('headerNav');
-    headerNav.innerHTML = `
-        <button class="nav-btn active" onclick="showUserTab('scan')">Сканировать</button>
-        <button class="nav-btn" onclick="showUserTab('history')">Опоздания</button>
-    `;
     
-    showUserTab('scan');
+    if (window.isWorker) {
+        headerNav.innerHTML = `
+            <button class="nav-btn active" onclick="showUserTab('scan')">Сканировать</button>
+            <button class="nav-btn" onclick="showUserTab('history')">Опоздания</button>
+        `;
+        showUserTab('scan');
+    } else {
+        // Для не-работников показываем только сообщение об ожидании
+        headerNav.innerHTML = '';
+        document.getElementById('scanTab').classList.add('active');
+        const readerEl = document.getElementById('qr-reader');
+        readerEl.innerHTML = `
+            <div class="access-denied">
+                <img src="svgg/block.svg" alt="Block" class="access-denied-icon-svg">
+                <div class="access-denied-text">Вы не идентифицированы как работник, ожидайте выдачи разрешений администратором</div>
+            </div>
+        `;
+    }
 }
 
 function showAdminPanel() {
