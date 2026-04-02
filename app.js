@@ -1,121 +1,60 @@
-// Supabase Configuration (используем существующий проект)
+// Supabase Configuration
 const SUPABASE_URL = 'https://hyxyablgkjtoxcxnurkk.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5eHlhYmxna2p0b3hjeG51cmtrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxODE5NjksImV4cCI6MjA4NDc1Nzk2OX0._3HQYSymZ2ArXIN143gAiwulCL1yt7i5fiHaTd4bp5U';
 
-// Инициализация Supabase после загрузки библиотеки
 let supabase;
 if (window.supabase) {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-} else {
-    console.error('Supabase library not loaded!');
 }
 
-// Telegram Web App
 const tg = window.Telegram?.WebApp;
 if (tg) {
     tg.ready();
     tg.expand();
-    
-    document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#1c1c1e');
-    document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#ffffff');
-    document.documentElement.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#8e8e93');
-    document.documentElement.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#0a84ff');
-    document.documentElement.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
-    document.documentElement.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#2c2c2e');
 }
 
 let currentUser = null;
 let html5QrCode = null;
 let currentFilter = 'week';
+let currentLogView = 'attendance';
+let currentLateFilter = 'week';
+let hasShownWelcome = false;
 
-// Debug Console
-const debugLogs = [];
-
-function debugLog(message, type = 'info') {
-    const timestamp = new Date().toLocaleTimeString();
-    debugLogs.push({ timestamp, message, type });
-    console.log(`[${type}] ${message}`);
-}
-
-function toggleDebugConsole() {
-    const consoleEl = document.getElementById('debug-console');
-    if (consoleEl.style.display === 'none' || !consoleEl.style.display) {
-        consoleEl.style.display = 'flex';
-        renderDebugLogs();
-    } else {
-        consoleEl.style.display = 'none';
-    }
-}
-
-function renderDebugLogs() {
-    const debugContent = document.getElementById('debug-content');
-    debugContent.innerHTML = '';
-    debugLogs.forEach(log => {
-        const logEl = document.createElement('div');
-        logEl.className = `debug-log ${log.type}`;
-        logEl.innerHTML = `<span class="debug-log-time">${log.timestamp}</span>${log.message}`;
-        debugContent.appendChild(logEl);
-    });
-    debugContent.scrollTop = debugContent.scrollHeight;
-}
-
-debugLog('QR Auth App loaded', 'info');
-
-// Инициализация приложения
+// Инициализация
 async function init() {
-    debugLog('Initializing app...', 'info');
-    
     let user;
     
-    // Проверяем наличие Telegram WebApp
     if (!tg || !tg.initDataUnsafe || !tg.initDataUnsafe.user) {
-        debugLog('No Telegram data, using TEST USER', 'warn');
-        
-        // Создаем тестового пользователя для проверки с ПК
-        // Проверяем URL параметр для выбора роли
         const urlParams = new URLSearchParams(window.location.search);
         const testMode = urlParams.get('test');
         
-        if (testMode === 'admin') {
-            user = {
-                id: 999999999,
-                first_name: 'Админ',
-                last_name: 'Тестовый',
-                username: 'test_admin',
-                photo_url: null
-            };
-            debugLog('TEST MODE: Admin user', 'warn');
-        } else {
-            user = {
-                id: 123456789,
-                first_name: 'Тестовый',
-                last_name: 'Пользователь',
-                username: 'test_user',
-                photo_url: null
-            };
-            debugLog('TEST MODE: Regular user (add ?test=admin for admin)', 'warn');
-        }
+        user = testMode === 'admin' ? {
+            id: 999999999,
+            first_name: 'Админ',
+            last_name: 'Тестовый',
+            username: 'test_admin',
+            photo_url: null
+        } : {
+            id: 123456789,
+            first_name: 'Тестовый',
+            last_name: 'Пользователь',
+            username: 'test_user',
+            photo_url: null
+        };
     } else {
         user = tg.initDataUnsafe.user;
-        debugLog('User: ' + user.first_name + ' (ID: ' + user.id + ')', 'info');
     }
 
     currentUser = user;
-    
-    // Обновляем UI
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Пользователь';
     document.getElementById('userName').textContent = fullName;
     
-    // Аватар
     const avatarEl = document.getElementById('userAvatar');
     if (user.photo_url) {
         avatarEl.innerHTML = `<img src="${user.photo_url}" alt="Avatar">`;
     }
 
-    // Регистрируем/обновляем пользователя в БД
     await registerUser(user);
-
-    // Проверяем, является ли пользователь админом
     const isAdmin = await checkAdmin(user.id);
 
     if (isAdmin) {
@@ -125,110 +64,72 @@ async function init() {
     }
 }
 
-// Регистрация пользователя
 async function registerUser(user) {
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Пользователь';
     
-    const { error } = await supabase
-        .from('qr_auth_users')
-        .upsert({
-            telegram_id: user.id,
-            username: user.username,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            full_name: fullName
-        }, {
-            onConflict: 'telegram_id'
-        });
-
-    if (error) {
-        console.error('Ошибка регистрации:', error);
-        debugLog('Registration error: ' + error.message, 'error');
-    }
+    await supabase.from('qr_auth_users').upsert({
+        telegram_id: user.id,
+        username: user.username,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        full_name: fullName
+    }, { onConflict: 'telegram_id' });
 }
 
-// Проверка админа
 async function checkAdmin(telegramId) {
-    const { data, error } = await supabase
+    const { data } = await supabase
         .from('qr_auth_users')
         .select('is_admin, is_worker')
         .eq('telegram_id', telegramId)
         .single();
 
-    if (error) {
-        console.error('Ошибка проверки админа:', error);
-        debugLog('Admin check error: ' + error.message, 'error');
-        return false;
-    }
-
-    // Сохраняем статус работника глобально
     window.isWorker = data?.is_worker || false;
-    debugLog('Worker status: ' + window.isWorker, 'info');
-
     return data?.is_admin || false;
 }
 
-// Показать экран пользователя
 function showUserScreen() {
-    debugLog('Showing user screen', 'info');
     const roleText = window.isWorker ? 'Работник' : 'Пользователь';
     document.getElementById('userRole').textContent = roleText;
     
-    // Создаем навигацию для пользователя
     const headerNav = document.getElementById('headerNav');
     headerNav.innerHTML = `
         <button class="nav-btn active" onclick="showUserTab('scan')">Сканировать</button>
-        <button class="nav-btn" onclick="showUserTab('history')">История</button>
+        <button class="nav-btn" onclick="showUserTab('history')">Опоздания</button>
     `;
     
-    // Показываем вкладку сканирования по умолчанию
     showUserTab('scan');
 }
 
-// Обновить статус пользователя
-async function refreshUserStatus() {
-    debugLog('Refreshing user status...', 'info');
-    
-    const isAdmin = await checkAdmin(currentUser.id);
-    
-    if (isAdmin) {
-        showAdminPanel();
-    } else {
-        showUserScreen();
-    }
-    
-    if (tg) tg.HapticFeedback.notificationOccurred('success');
-}
-
-// Показать админ-панель
 function showAdminPanel() {
-    debugLog('Showing admin panel', 'info');
     document.getElementById('userRole').textContent = 'Администратор';
     document.getElementById('userRole').classList.add('admin');
     
-    // Создаем навигацию для админа
     const headerNav = document.getElementById('headerNav');
     headerNav.innerHTML = `
-        <button class="nav-btn active" onclick="showAdminTab('welcome')">Главная</button>
-        <button class="nav-btn" onclick="showAdminTab('logs')">Логи</button>
+        <button class="nav-btn active" onclick="showAdminTab('logs')">Логи</button>
         <button class="nav-btn" onclick="showAdminTab('users')">Пользователи</button>
         <button class="nav-btn" onclick="showAdminTab('generate')">Генератор</button>
     `;
     
-    // Показываем приветствие по умолчанию
-    showAdminTab('welcome');
+    // Показываем приветствие только при первом входе
+    if (!hasShownWelcome) {
+        document.getElementById('adminWelcome').classList.remove('hidden');
+        hasShownWelcome = true;
+        setTimeout(() => {
+            document.getElementById('adminWelcome').classList.add('hidden');
+            showAdminTab('logs');
+        }, 3000);
+    } else {
+        showAdminTab('logs');
+    }
     
-    // Подписка на обновления в реальном времени
     subscribeToAuthLogs();
 }
 
-// Переключение вкладок пользователя
 function showUserTab(tab) {
-    // Обновляем кнопки навигации
     document.querySelectorAll('.header-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
     event?.target?.classList.add('active');
     
-    // Скрываем все вкладки
     document.getElementById('scanTab').classList.remove('active');
     document.getElementById('historyTab').classList.remove('active');
     
@@ -237,30 +138,24 @@ function showUserTab(tab) {
         checkTodayAuth();
     } else if (tab === 'history') {
         document.getElementById('historyTab').classList.add('active');
-        loadUserHistory();
+        loadUserLateHistory();
     }
     
     if (tg) tg.HapticFeedback.impactOccurred('light');
 }
 
-// Переключение вкладок админа
 function showAdminTab(tab) {
-    // Обновляем кнопки навигации
     document.querySelectorAll('.header-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
     event?.target?.classList.add('active');
     
-    // Скрываем все вкладки
     document.getElementById('adminWelcome').classList.add('hidden');
     document.getElementById('logsTab').classList.remove('active');
     document.getElementById('usersTab').classList.remove('active');
     document.getElementById('generateTab').classList.remove('active');
     
-    if (tab === 'welcome') {
-        document.getElementById('adminWelcome').classList.remove('hidden');
-    } else if (tab === 'logs') {
+    if (tab === 'logs') {
         document.getElementById('logsTab').classList.add('active');
         loadAuthLogs();
-        calculateStats();
     } else if (tab === 'users') {
         document.getElementById('usersTab').classList.add('active');
         loadUsers();
@@ -271,26 +166,18 @@ function showAdminTab(tab) {
     if (tg) tg.HapticFeedback.impactOccurred('light');
 }
 
-// Проверка авторизации сегодня
 async function checkTodayAuth() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const { data, error } = await supabase
+    const { data } = await supabase
         .from('qr_auth_logs')
         .select('*')
         .eq('user_id', currentUser.id)
         .gte('auth_time', today.toISOString())
         .limit(1);
     
-    if (error) {
-        debugLog('Error checking today auth: ' + error.message, 'error');
-        startQRScanner();
-        return;
-    }
-    
     if (data && data.length > 0) {
-        // Уже сканировал сегодня
         const readerEl = document.getElementById('qr-reader');
         readerEl.innerHTML = `
             <div class="success-day-message">
@@ -299,17 +186,13 @@ async function checkTodayAuth() {
                 <div class="success-text">Хорошего рабочего дня!</div>
             </div>
         `;
-        debugLog('Already authorized today', 'info');
     } else {
         startQRScanner();
     }
 }
 
-// Запуск QR-сканера
 function startQRScanner() {
-    // Проверяем статус работника
     if (!window.isWorker) {
-        debugLog('Access denied: not a worker', 'warn');
         const readerEl = document.getElementById('qr-reader');
         readerEl.innerHTML = `
             <div class="access-denied">
@@ -320,41 +203,24 @@ function startQRScanner() {
         return;
     }
     
-    if (html5QrCode) {
-        // Сканер уже запущен
-        return;
-    }
+    if (html5QrCode) return;
     
     html5QrCode = new Html5Qrcode("qr-reader");
     
-    const config = {
-        fps: 10,
-        qrbox: { width: 250, height: 250 }
-    };
-
     html5QrCode.start(
         { facingMode: "environment" },
-        config,
+        { fps: 10, qrbox: { width: 250, height: 250 } },
         onScanSuccess,
-        onScanError
+        () => {}
     ).catch(err => {
-        console.error('Ошибка запуска сканера:', err);
-        debugLog('Scanner error: ' + err.message, 'error');
-        showResultMessage('Не удалось запустить камеру. Проверьте разрешения.', 'error');
+        showResultMessage('Не удалось запустить камеру', 'error');
     });
 }
 
-// Обработка успешного сканирования
-async function onScanSuccess(decodedText, decodedResult) {
-    debugLog('QR scanned: ' + decodedText, 'info');
-    
-    // Проверяем префикс QR-кода
+async function onScanSuccess(decodedText) {
     if (!decodedText.startsWith('QR_AUTH_')) {
-        debugLog('Invalid QR code (no prefix): ' + decodedText, 'warn');
-        showResultMessage('❌ Неверный QR-код. Используйте только коды из системы.', 'error');
+        showResultMessage('❌ Неверный QR-код', 'error');
         if (tg) tg.HapticFeedback.notificationOccurred('error');
-        
-        // Перезапускаем сканер через 2 секунды
         setTimeout(() => {
             hideResultMessage();
             startQRScanner();
@@ -362,60 +228,48 @@ async function onScanSuccess(decodedText, decodedResult) {
         return;
     }
     
-    // Останавливаем сканер
     if (html5QrCode) {
         await html5QrCode.stop();
         html5QrCode = null;
     }
 
-    // Отправляем данные авторизации
     await sendAuthLog(decodedText);
 }
 
-function onScanError(error) {
-    // Игнорируем ошибки сканирования (они происходят постоянно)
-}
-
-// Отправка лога авторизации
 async function sendAuthLog(qrCode) {
     const fullName = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() 
         || currentUser.username || 'Пользователь';
 
-    const { data, error } = await supabase
-        .from('qr_auth_logs')
-        .insert({
-            user_id: currentUser.id,
-            full_name: fullName,
-            qr_code: qrCode,
-            auth_time: new Date().toISOString()
-        });
+    const { error } = await supabase.from('qr_auth_logs').insert({
+        user_id: currentUser.id,
+        full_name: fullName,
+        qr_code: qrCode,
+        auth_time: new Date().toISOString()
+    });
 
     if (error) {
-        console.error('Ошибка отправки:', error);
-        debugLog('Auth log error: ' + error.message, 'error');
         showResultMessage('Ошибка авторизации', 'error');
         if (tg) tg.HapticFeedback.notificationOccurred('error');
-        
-        // Перезапускаем сканер через 2 секунды
         setTimeout(() => {
             hideResultMessage();
             startQRScanner();
         }, 2000);
     } else {
-        debugLog('Auth successful', 'info');
-        showResultMessage('✅ Авторизация успешна!', 'success');
+        // Показываем успешное сообщение на весь день
+        const readerEl = document.getElementById('qr-reader');
+        readerEl.innerHTML = `
+            <div class="success-day-message">
+                <div class="success-icon">✅</div>
+                <div class="success-title">Успешная авторизация!</div>
+                <div class="success-text">Хорошего рабочего дня!</div>
+            </div>
+        `;
         if (tg) tg.HapticFeedback.notificationOccurred('success');
-        
-        // Перезапускаем сканер через 2 секунды
-        setTimeout(() => {
-            hideResultMessage();
-            startQRScanner();
-        }, 2000);
     }
 }
 
-// Загрузка истории пользователя
-async function loadUserHistory() {
+// История опозданий работника
+async function loadUserLateHistory() {
     const historyList = document.getElementById('historyList');
     historyList.innerHTML = '<p class="loading">Загрузка...</p>';
 
@@ -424,14 +278,13 @@ async function loadUserHistory() {
         return;
     }
 
-    // Определяем период
     let dateFilter = new Date();
     if (currentFilter === 'week') {
         dateFilter.setDate(dateFilter.getDate() - 7);
     } else if (currentFilter === 'month') {
         dateFilter.setMonth(dateFilter.getMonth() - 1);
     } else {
-        dateFilter = null; // Все время
+        dateFilter = null;
     }
 
     let query = supabase
@@ -444,31 +297,42 @@ async function loadUserHistory() {
         query = query.gte('auth_time', dateFilter.toISOString());
     }
 
-    const { data, error } = await query.limit(50);
-
-    if (error) {
-        console.error('Ошибка загрузки истории:', error);
-        debugLog('History error: ' + error.message, 'error');
-        historyList.innerHTML = '<p class="error">Ошибка загрузки данных</p>';
-        return;
-    }
+    const { data } = await query.limit(50);
 
     if (!data || data.length === 0) {
-        historyList.innerHTML = '<div class="empty-state">Нет посещений за выбранный период</div>';
+        const periodText = currentFilter === 'week' ? 'на этой неделе' : currentFilter === 'month' ? 'в этом месяце' : 'за все время';
+        historyList.innerHTML = `<div class="empty-state">🎉<br>${periodText.charAt(0).toUpperCase() + periodText.slice(1)} еще не было опозданий, так держать!</div>`;
         return;
     }
 
-    renderHistory(data);
+    renderLateHistory(data);
 }
 
-// Отрисовка истории
-function renderHistory(logs) {
+function renderLateHistory(logs) {
     const historyList = document.getElementById('historyList');
     historyList.innerHTML = '';
+    
+    const WORK_START_HOUR = 8;
+    const WORK_START_MINUTE = 0;
+    
+    const lateEntries = logs.filter(log => {
+        const authTime = new Date(log.auth_time);
+        const hour = authTime.getHours();
+        const minute = authTime.getMinutes();
+        
+        // Опоздание если после 8:00
+        return hour > WORK_START_HOUR || (hour === WORK_START_HOUR && minute > WORK_START_MINUTE);
+    });
+    
+    if (lateEntries.length === 0) {
+        const periodText = currentFilter === 'week' ? 'на этой неделе' : currentFilter === 'month' ? 'в этом месяце' : 'за все время';
+        historyList.innerHTML = `<div class="empty-state">🎉<br>${periodText.charAt(0).toUpperCase() + periodText.slice(1)} не было опозданий, так держать!</div>`;
+        return;
+    }
 
-    logs.forEach(log => {
+    lateEntries.forEach(log => {
         const item = document.createElement('div');
-        item.className = 'history-item';
+        item.className = 'history-item late';
         
         const authTime = new Date(log.auth_time);
         const dateStr = authTime.toLocaleDateString('ru-RU', {
@@ -479,61 +343,96 @@ function renderHistory(logs) {
             hour: '2-digit',
             minute: '2-digit'
         });
+        
+        // Вычисляем опоздание
+        const lateMinutes = (authTime.getHours() - WORK_START_HOUR) * 60 + authTime.getMinutes();
 
         item.innerHTML = `
             <div class="history-item-info">
                 <div class="history-item-date">${dateStr}</div>
-                <div class="history-item-time">${timeStr}</div>
+                <div class="history-item-time">Пришел в ${timeStr}</div>
             </div>
-            <div class="history-item-icon">✅</div>
+            <div class="history-item-late">+${lateMinutes} мин</div>
         `;
 
         historyList.appendChild(item);
     });
 }
 
-// Фильтр истории
 function filterHistory(period) {
     currentFilter = period;
-    
-    // Обновляем кнопки
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     event?.target?.classList.add('active');
+    loadUserLateHistory();
+    if (tg) tg.HapticFeedback.impactOccurred('light');
+}
+
+// Админ: Логи
+let currentDayView = 'today';
+
+function switchLogView(view) {
+    currentLogView = view;
+    document.querySelectorAll('.log-view-btn').forEach(btn => btn.classList.remove('active'));
+    event?.target?.classList.add('active');
     
-    loadUserHistory();
+    document.getElementById('attendanceView').classList.toggle('hidden', view !== 'attendance');
+    document.getElementById('lateView').classList.toggle('hidden', view !== 'late');
+    
+    if (view === 'attendance') {
+        loadAttendanceLogs();
+    } else {
+        loadLateLogs();
+    }
     
     if (tg) tg.HapticFeedback.impactOccurred('light');
 }
 
-// Загрузка логов авторизации для админа
 async function loadAuthLogs() {
-    const authList = document.getElementById('authList');
-    authList.innerHTML = '<p class="loading">Загрузка...</p>';
-
-    const { data, error } = await supabase
-        .from('qr_auth_logs')
-        .select('*')
-        .order('auth_time', { ascending: false })
-        .limit(100);
-
-    if (error) {
-        console.error('Ошибка загрузки логов:', error);
-        debugLog('Logs error: ' + error.message, 'error');
-        authList.innerHTML = '<p class="error">Ошибка загрузки данных</p>';
-        return;
-    }
-
-    if (!data || data.length === 0) {
-        authList.innerHTML = '<div class="empty-state">Пока нет авторизаций</div>';
-        return;
-    }
-
-    renderAuthLogs(data);
+    switchLogView('attendance');
 }
 
-// Отрисовка логов
-function renderAuthLogs(logs) {
-    const authList = document.getElementById('authList');
+async function loadAttendanceLogs() {
+    const authList = document.getElementById('attendanceList');
+    
+    if (currentDayView === 'today') {
+        authList.innerHTML = '<p class="loading">Загрузка...</p>';
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const { data } = await supabase
+            .from('qr_auth_logs')
+            .select('*')
+            .gte('auth_time', today.toISOString())
+            .order('auth_time', { ascending: false });
+
+        if (!data || data.length === 0) {
+            authList.innerHTML = '<div class="empty-state">Сегодня еще никто не отметился</div>';
+            return;
+        }
+
+        renderTodayAttendance(data);
+    } else {
+        // Показываем список дней
+        authList.innerHTML = '<p class="loading">Загрузка...</p>';
+        
+        const { data } = await supabase
+            .from('qr_auth_logs')
+            .select('*')
+            .order('auth_time', { ascending: false })
+            .limit(500);
+
+        if (!data || data.length === 0) {
+            authList.innerHTML = '<div class="empty-state">Нет данных</div>';
+            return;
+        }
+
+        renderDaysList(data);
+    }
+}
+
+function renderTodayAttendance(logs) {
+    const authList = document.getElementById('attendanceList');
     authList.innerHTML = '';
 
     logs.forEach(log => {
@@ -541,16 +440,11 @@ function renderAuthLogs(logs) {
         item.className = 'auth-item';
         
         const authTime = new Date(log.auth_time);
-        const timeStr = authTime.toLocaleString('ru-RU', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
+        const timeStr = authTime.toLocaleTimeString('ru-RU', {
             hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
+            minute: '2-digit'
         });
 
-        // Убираем префикс QR_AUTH_ из отображения
         const displayQR = log.qr_code.replace('QR_AUTH_', '');
 
         item.innerHTML = `
@@ -565,58 +459,144 @@ function renderAuthLogs(logs) {
     });
 }
 
-// Расчет статистики
-async function calculateStats() {
-    const { data, error } = await supabase
-        .from('qr_auth_logs')
-        .select('auth_time');
+function renderDaysList(logs) {
+    const authList = document.getElementById('attendanceList');
+    authList.innerHTML = '';
+    
+    // Группируем по датам
+    const byDate = {};
+    logs.forEach(log => {
+        const date = new Date(log.auth_time);
+        const dateKey = date.toLocaleDateString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+        
+        if (!byDate[dateKey]) {
+            byDate[dateKey] = [];
+        }
+        byDate[dateKey].push(log);
+    });
+    
+    // Отрисовываем дни
+    Object.keys(byDate).forEach(dateKey => {
+        const dayItem = document.createElement('div');
+        dayItem.className = 'day-item';
+        dayItem.innerHTML = `
+            <div class="day-header" onclick="toggleDayDetails('${dateKey}')">
+                <span class="day-date">${dateKey}</span>
+                <span class="day-count">${byDate[dateKey].length} чел.</span>
+                <span class="day-arrow">▼</span>
+            </div>
+            <div class="day-details hidden" id="day-${dateKey}">
+                ${byDate[dateKey].map(log => {
+                    const time = new Date(log.auth_time).toLocaleTimeString('ru-RU', {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    return `<div class="day-detail-item">${log.full_name} — ${time}</div>`;
+                }).join('')}
+            </div>
+        `;
+        authList.appendChild(dayItem);
+    });
+}
 
-    if (error || !data) {
-        document.getElementById('todayCount').textContent = '0';
-        document.getElementById('weekCount').textContent = '0';
-        document.getElementById('monthCount').textContent = '0';
+function toggleDayDetails(dateKey) {
+    const details = document.getElementById(`day-${dateKey}`);
+    const arrow = event.target.closest('.day-header').querySelector('.day-arrow');
+    details.classList.toggle('hidden');
+    arrow.style.transform = details.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+}
+
+function switchDayView(view) {
+    currentDayView = view;
+    document.querySelectorAll('.day-view-btn').forEach(btn => btn.classList.remove('active'));
+    event?.target?.classList.add('active');
+    loadAttendanceLogs();
+}
+
+// Опоздания для админа
+async function loadLateLogs() {
+    const lateList = document.getElementById('lateList');
+    lateList.innerHTML = '<p class="loading">Загрузка...</p>';
+    
+    let dateFilter = new Date();
+    if (currentLateFilter === 'week') {
+        dateFilter.setDate(dateFilter.getDate() - 7);
+    } else {
+        dateFilter.setMonth(dateFilter.getMonth() - 1);
+    }
+    
+    const { data } = await supabase
+        .from('qr_auth_logs')
+        .select('*')
+        .gte('auth_time', dateFilter.toISOString())
+        .order('auth_time', { ascending: false });
+
+    if (!data || data.length === 0) {
+        lateList.innerHTML = '<div class="empty-state">Нет данных</div>';
         return;
     }
-
-    const now = new Date();
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    let todayCount = 0;
-    let weekCount = 0;
-    let monthCount = 0;
-
+    
+    // Подсчитываем опоздания по пользователям
+    const WORK_START_HOUR = 8;
+    const WORK_START_MINUTE = 0;
+    
+    const lateByUser = {};
+    
     data.forEach(log => {
-        const logTime = new Date(log.auth_time);
-        if (logTime >= todayStart) todayCount++;
-        if (logTime >= weekStart) weekCount++;
-        if (logTime >= monthStart) monthCount++;
-    });
-
-    document.getElementById('todayCount').textContent = todayCount;
-    document.getElementById('weekCount').textContent = weekCount;
-    document.getElementById('monthCount').textContent = monthCount;
-}
-
-// Подписка на обновления в реальном времени
-function subscribeToAuthLogs() {
-    supabase
-        .channel('qr_auth_logs_channel')
-        .on('postgres_changes', 
-            { event: 'INSERT', schema: 'public', table: 'qr_auth_logs' },
-            (payload) => {
-                console.log('Новая авторизация:', payload);
-                debugLog('New auth: ' + payload.new.full_name, 'info');
-                if (tg) tg.HapticFeedback.notificationOccurred('success');
-                loadAuthLogs();
-                calculateStats();
+        const authTime = new Date(log.auth_time);
+        const hour = authTime.getHours();
+        const minute = authTime.getMinutes();
+        
+        if (hour > WORK_START_HOUR || (hour === WORK_START_HOUR && minute > WORK_START_MINUTE)) {
+            if (!lateByUser[log.user_id]) {
+                lateByUser[log.user_id] = {
+                    name: log.full_name,
+                    count: 0
+                };
             }
-        )
-        .subscribe();
+            lateByUser[log.user_id].count++;
+        }
+    });
+    
+    renderLateSummary(lateByUser);
 }
 
-// Генерация QR-кода
+function renderLateSummary(lateByUser) {
+    const lateList = document.getElementById('lateList');
+    lateList.innerHTML = '';
+    
+    const users = Object.values(lateByUser).sort((a, b) => b.count - a.count);
+    
+    if (users.length === 0) {
+        lateList.innerHTML = '<div class="empty-state">🎉<br>Опозданий нет!</div>';
+        return;
+    }
+    
+    users.forEach(user => {
+        const item = document.createElement('div');
+        item.className = 'late-item';
+        
+        item.innerHTML = `
+            <span class="late-name">${user.name}</span>
+            <span class="late-count">${user.count}</span>
+        `;
+        
+        lateList.appendChild(item);
+    });
+}
+
+function switchLateFilter(period) {
+    currentLateFilter = period;
+    document.querySelectorAll('.late-filter-btn').forEach(btn => btn.classList.remove('active'));
+    event?.target?.classList.add('active');
+    loadLateLogs();
+}
+
+// Генерация QR с уникальным ID
 async function generateQR() {
     const text = document.getElementById('qrText').value.trim();
     
@@ -626,24 +606,21 @@ async function generateQR() {
         return;
     }
 
-    // Добавляем префикс для защиты
-    const qrData = 'QR_AUTH_' + text;
-    
-    debugLog('Generating QR: ' + qrData, 'info');
+    // Генерируем уникальный ID
+    const uniqueId = Math.floor(10000 + Math.random() * 90000);
+    const today = new Date().toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+    const qrData = `QR_AUTH_${today}_${text}_${uniqueId}`;
 
     const qrContainer = document.getElementById('qrCanvas');
     const preview = document.getElementById('qrPreview');
     
     try {
-        // Очищаем предыдущий QR
         qrContainer.innerHTML = '';
         
-        // Проверяем что библиотека QRCode загружена
         if (typeof QRCode === 'undefined') {
             throw new Error('QRCode library not loaded');
         }
         
-        // Генерируем QR код с темным фоном
         new QRCode(qrContainer, {
             text: qrData,
             width: 300,
@@ -655,18 +632,14 @@ async function generateQR() {
         
         preview.classList.remove('hidden');
         
-        debugLog('QR generated successfully', 'info');
-        
         if (tg) tg.HapticFeedback.notificationOccurred('success');
     } catch (err) {
         console.error('Ошибка генерации QR:', err);
-        debugLog('QR generation error: ' + err.message, 'error');
-        if (tg) tg.showAlert('Ошибка генерации QR-кода: ' + err.message);
-        else alert('Ошибка генерации QR-кода: ' + err.message);
+        if (tg) tg.showAlert('Ошибка: ' + err.message);
+        else alert('Ошибка: ' + err.message);
     }
 }
 
-// Скачать QR-код
 function downloadQR() {
     const qrContainer = document.getElementById('qrCanvas');
     const canvas = qrContainer.querySelector('canvas');
@@ -686,11 +659,9 @@ function downloadQR() {
         URL.revokeObjectURL(url);
     });
     
-    debugLog('QR downloaded', 'info');
     if (tg) tg.HapticFeedback.notificationOccurred('success');
 }
 
-// Печать QR-кода
 function printQR() {
     const qrContainer = document.getElementById('qrCanvas');
     const canvas = qrContainer.querySelector('canvas');
@@ -708,29 +679,9 @@ function printQR() {
         <head>
             <title>QR Code - ${text}</title>
             <style>
-                body {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    min-height: 100vh;
-                    margin: 0;
-                    font-family: Arial, sans-serif;
-                }
-                h1 {
-                    margin-bottom: 20px;
-                }
-                img {
-                    max-width: 400px;
-                    border: 2px solid #000;
-                    padding: 20px;
-                }
-                @media print {
-                    body {
-                        display: block;
-                        padding: 40px;
-                    }
-                }
+                body { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; font-family: Arial, sans-serif; }
+                h1 { margin-bottom: 20px; }
+                img { max-width: 400px; border: 2px solid #000; padding: 20px; }
             </style>
         </head>
         <body>
@@ -741,55 +692,20 @@ function printQR() {
     `);
     
     printWindow.document.close();
-    setTimeout(() => {
-        printWindow.print();
-    }, 250);
+    setTimeout(() => printWindow.print(), 250);
     
-    debugLog('QR print initiated', 'info');
     if (tg) tg.HapticFeedback.notificationOccurred('success');
 }
 
-// Показать результат сканирования
-function showResultMessage(message, type) {
-    const resultDiv = document.getElementById('scanResult');
-    resultDiv.textContent = message;
-    resultDiv.className = `result-message ${type}`;
-}
-
-function hideResultMessage() {
-    const resultDiv = document.getElementById('scanResult');
-    resultDiv.className = 'result-message hidden';
-}
-
-function showError(message) {
-    const container = document.getElementById('mainContainer');
-    container.innerHTML = `
-        <div class="error-container">
-            <div class="error-icon">⚠️</div>
-            <p>${message}</p>
-        </div>
-    `;
-}
-
-// Запуск приложения
-init();
-
-// Загрузка списка пользователей
+// Управление пользователями
 async function loadUsers() {
     const usersList = document.getElementById('usersList');
     usersList.innerHTML = '<p class="loading">Загрузка...</p>';
 
-    const { data, error } = await supabase
+    const { data } = await supabase
         .from('qr_auth_users')
         .select('*')
         .order('created_at', { ascending: false, nullsFirst: false });
-
-    if (error) {
-        console.error('Ошибка загрузки пользователей:', error);
-        debugLog('Users load error: ' + error.message, 'error');
-        usersList.innerHTML = '<p class="error">Ошибка загрузки данных</p>';
-        return;
-    }
 
     if (!data || data.length === 0) {
         usersList.innerHTML = '<div class="empty-state">Пока нет пользователей</div>';
@@ -799,7 +715,6 @@ async function loadUsers() {
     renderUsers(data);
 }
 
-// Отрисовка списка пользователей
 function renderUsers(users) {
     const usersList = document.getElementById('usersList');
     usersList.innerHTML = '';
@@ -854,11 +769,8 @@ function renderUsers(users) {
     });
 }
 
-// Переключение статуса работника
 async function toggleWorkerStatus(telegramId, currentStatus) {
     const newStatus = !currentStatus;
-    
-    debugLog(`Changing worker status for ${telegramId} to ${newStatus}`, 'info');
 
     const { error } = await supabase
         .from('qr_auth_users')
@@ -866,21 +778,37 @@ async function toggleWorkerStatus(telegramId, currentStatus) {
         .eq('telegram_id', telegramId);
 
     if (error) {
-        console.error('Ошибка обновления статуса:', error);
-        debugLog('Status update error: ' + error.message, 'error');
-        if (tg) {
-            tg.showAlert('Ошибка обновления статуса');
-            tg.HapticFeedback.notificationOccurred('error');
-        } else {
-            alert('Ошибка обновления статуса');
-        }
+        if (tg) tg.showAlert('Ошибка обновления');
+        else alert('Ошибка обновления');
         return;
     }
-
-    debugLog('Worker status updated successfully', 'info');
     
     if (tg) tg.HapticFeedback.notificationOccurred('success');
-    
-    // Перезагружаем список
     loadUsers();
 }
+
+function subscribeToAuthLogs() {
+    supabase
+        .channel('qr_auth_logs_channel')
+        .on('postgres_changes', 
+            { event: 'INSERT', schema: 'public', table: 'qr_auth_logs' },
+            () => {
+                if (tg) tg.HapticFeedback.notificationOccurred('success');
+                if (currentLogView === 'attendance') loadAttendanceLogs();
+                else loadLateLogs();
+            }
+        )
+        .subscribe();
+}
+
+function showResultMessage(message, type) {
+    const resultDiv = document.getElementById('scanResult');
+    resultDiv.textContent = message;
+    resultDiv.className = `result-message ${type}`;
+}
+
+function hideResultMessage() {
+    document.getElementById('scanResult').className = 'result-message hidden';
+}
+
+init();

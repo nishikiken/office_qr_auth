@@ -14,16 +14,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
-    <!-- Debug Console -->
-    <div id="debug-console" class="debug-console">
-        <div class="debug-header">
-            <span>Debug Console</span>
-            <button onclick="toggleDebugConsole()">✕</button>
-        </div>
-        <div id="debug-content" class="debug-content"></div>
-    </div>
-    <button id="debug-toggle" class="debug-toggle" onclick="toggleDebugConsole()">🐛</button>
-
     <!-- Fixed Header -->
     <header class="app-header">
         <div class="header-left">
@@ -33,9 +23,7 @@
                 <div id="userRole" class="user-role">Пользователь</div>
             </div>
         </div>
-        <nav id="headerNav" class="header-nav">
-            <!-- Навигация будет добавлена динамически -->
-        </nav>
+        <nav id="headerNav" class="header-nav"></nav>
     </header>
 
     <div class="container" id="mainContainer">
@@ -50,59 +38,56 @@
                 <div class="scanner-container">
                     <div id="qr-reader"></div>
                 </div>
-                <div class="scan-info">
-                    <div class="scan-icon">📱</div>
-                    <p>Наведите камеру на QR-код</p>
-                </div>
             </div>
             <div id="scanResult" class="result-message hidden"></div>
         </div>
 
-        <!-- История посещений пользователя -->
+        <!-- История опозданий пользователя -->
         <div id="historyTab" class="tab-content hidden">
             <div class="history-filters">
                 <button class="filter-btn active" onclick="filterHistory('week')">Неделя</button>
                 <button class="filter-btn" onclick="filterHistory('month')">Месяц</button>
                 <button class="filter-btn" onclick="filterHistory('all')">Всё время</button>
             </div>
-            <div id="historyList" class="history-list">
-                <p class="loading">Загрузка...</p>
-            </div>
+            <div id="historyList" class="history-list"></div>
         </div>
 
-        <!-- Админ: Логи всех авторизаций -->
+        <!-- Админ: Логи -->
         <div id="logsTab" class="tab-content hidden">
-            <div class="admin-stats">
-                <div class="stat-card">
-                    <div class="stat-value" id="todayCount">0</div>
-                    <div class="stat-label">Сегодня</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="weekCount">0</div>
-                    <div class="stat-label">За неделю</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="monthCount">0</div>
-                    <div class="stat-label">За месяц</div>
-                </div>
+            <div class="log-view-tabs">
+                <button class="log-view-btn active" onclick="switchLogView('attendance')">Отметки</button>
+                <button class="log-view-btn" onclick="switchLogView('late')">Опоздания</button>
             </div>
-            <div id="authList" class="auth-list">
-                <p class="loading">Загрузка данных...</p>
+
+            <!-- Отметки -->
+            <div id="attendanceView">
+                <div class="day-view-tabs">
+                    <button class="day-view-btn active" onclick="switchDayView('today')">Сегодня</button>
+                    <button class="day-view-btn" onclick="switchDayView('all')">Все дни</button>
+                </div>
+                <div id="attendanceList" class="auth-list"></div>
+            </div>
+
+            <!-- Опоздания -->
+            <div id="lateView" class="hidden">
+                <div class="late-filters">
+                    <button class="late-filter-btn active" onclick="switchLateFilter('week')">Неделя</button>
+                    <button class="late-filter-btn" onclick="switchLateFilter('month')">Месяц</button>
+                </div>
+                <div id="lateList" class="late-list"></div>
             </div>
         </div>
 
-        <!-- Админ: Управление пользователями -->
+        <!-- Админ: Пользователи -->
         <div id="usersTab" class="tab-content hidden">
             <div class="users-header">
                 <h3>Управление пользователями</h3>
                 <button class="btn-refresh" onclick="loadUsers()">🔄 Обновить</button>
             </div>
-            <div id="usersList" class="users-list">
-                <p class="loading">Загрузка...</p>
-            </div>
+            <div id="usersList" class="users-list"></div>
         </div>
 
-        <!-- Админ: Генератор QR-кодов -->
+        <!-- Админ: Генератор QR -->
         <div id="generateTab" class="tab-content hidden">
             <div class="generate-card">
                 <h3>Генератор QR-кодов</h3>
