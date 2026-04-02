@@ -391,10 +391,12 @@ function renderLateHistory(logs) {
             minute: '2-digit'
         });
 
+        const genderText = window.userGender === 'F' ? 'Пришла' : 'Пришел';
+
         item.innerHTML = `
             <div class="history-item-info">
                 <div class="history-item-date">${dateStr}</div>
-                <div class="history-item-time">Пришел/Пришла в ${timeStr}</div>
+                <div class="history-item-time">${genderText} в ${timeStr}</div>
             </div>
             <div class="history-item-late">${index + 1}</div>
         `;
@@ -995,30 +997,40 @@ async function deleteUser(telegramId, fullName) {
 }
 
 async function performDeleteUser(telegramId) {
-    // Удаляем логи пользователя
-    const { error: logsError } = await supabase
-        .from('qr_auth_logs')
-        .delete()
-        .eq('user_id', telegramId);
-    
-    if (logsError) {
-        console.error('Error deleting logs:', logsError);
-    }
-    
-    // Удаляем пользователя
-    const { error: userError } = await supabase
-        .from('qr_auth_users')
-        .delete()
-        .eq('telegram_id', telegramId);
+    try {
+        // Удаляем логи пользователя
+        const { error: logsError } = await supabase
+            .from('qr_auth_logs')
+            .delete()
+            .eq('user_id', telegramId);
+        
+        if (logsError) {
+            console.error('Error deleting logs:', logsError);
+            throw logsError;
+        }
+        
+        // Удаляем пользователя
+        const { error: userError } = await supabase
+            .from('qr_auth_users')
+            .delete()
+            .eq('telegram_id', telegramId);
 
-    if (userError) {
-        if (tg) tg.showAlert('Ошибка удаления: ' + userError.message);
-        else alert('Ошибка удаления: ' + userError.message);
-        return;
+        if (userError) {
+            console.error('Error deleting user:', userError);
+            throw userError;
+        }
+        
+        if (tg) tg.HapticFeedback.notificationOccurred('success');
+        
+        // Небольшая задержка перед обновлением списка
+        setTimeout(() => {
+            loadUsers();
+        }, 300);
+    } catch (error) {
+        console.error('Delete error:', error);
+        if (tg) tg.showAlert('Ошибка удаления: ' + error.message);
+        else alert('Ошибка удаления: ' + error.message);
     }
-    
-    if (tg) tg.HapticFeedback.notificationOccurred('success');
-    loadUsers();
 }
 
 async function toggleWorkerStatus(telegramId, currentStatus) {
