@@ -109,8 +109,8 @@ function showAdminPanel() {
     
     const headerNav = document.getElementById('headerNav');
     headerNav.innerHTML = `
-        <div class="menu-section">
-            <div class="menu-section-title">Раздел</div>
+        <div class="nav-section">
+            <div class="nav-section-title">Логи</div>
             <button class="nav-btn" onclick="showAdminTab('logs', 'attendance')">Отметки</button>
             <button class="nav-btn" onclick="showAdminTab('logs', 'late')">Опоздания</button>
         </div>
@@ -629,7 +629,7 @@ function switchLateFilter(period) {
     loadLateLogs();
 }
 
-// Генерация QR с уникальным ID
+// Генерация QR
 async function generateQR() {
     const dateInput = document.getElementById('qrDate');
     const selectedDate = dateInput.value;
@@ -640,9 +640,7 @@ async function generateQR() {
         return;
     }
 
-    // Генерируем уникальный ID
-    const uniqueId = Math.floor(10000 + Math.random() * 90000);
-    const qrData = `QR_AUTH_${selectedDate}_${uniqueId}`;
+    const qrData = `QR_AUTH_${selectedDate}`;
 
     const qrContainer = document.getElementById('qrCanvas');
     const preview = document.getElementById('qrPreview');
