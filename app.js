@@ -46,8 +46,16 @@ async function init() {
     }
 
     currentUser = user;
-    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Пользователь';
-    document.getElementById('userName').textContent = fullName;
+    
+    // Получаем данные пользователя из БД для отображения display_name
+    const { data: userData } = await supabase
+        .from('qr_auth_users')
+        .select('display_name, gender, is_admin, is_worker')
+        .eq('telegram_id', user.id)
+        .single();
+    
+    const displayName = userData?.display_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Пользователь';
+    document.getElementById('userName').textContent = displayName;
     
     const avatarEl = document.getElementById('userAvatar');
     if (user.photo_url) {
@@ -55,7 +63,9 @@ async function init() {
     }
 
     await registerUser(user);
-    const isAdmin = await checkAdmin(user.id);
+    const isAdmin = userData?.is_admin || false;
+    window.isWorker = userData?.is_worker || false;
+    window.userGender = userData?.gender || 'M';
 
     if (isAdmin) {
         showAdminPanel();
@@ -82,11 +92,12 @@ async function registerUser(user) {
 async function checkAdmin(telegramId) {
     const { data } = await supabase
         .from('qr_auth_users')
-        .select('is_admin, is_worker')
+        .select('is_admin, is_worker, gender')
         .eq('telegram_id', telegramId)
         .single();
 
     window.isWorker = data?.is_worker || false;
+    window.userGender = data?.gender || 'M';
     return data?.is_admin || false;
 }
 
@@ -963,65 +974,6 @@ async function removeWorkerStatus(telegramId) {
     loadWorkers();
 }
 
-function renderUsers(users) {
-    const usersList = document.getElementById('usersList');
-    usersList.innerHTML = '';
-
-    users.forEach(user => {
-        const item = document.createElement('div');
-        item.className = 'user-item';
-        
-        let dateStr = 'Дата неизвестна';
-        if (user.created_at) {
-            const createdAt = new Date(user.created_at);
-            dateStr = createdAt.toLocaleDateString('ru-RU', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric'
-            });
-        }
-
-        const isWorker = user.is_worker || false;
-        const isAdmin = user.is_admin || false;
-
-        let statusBadge = '';
-        if (isAdmin) {
-            statusBadge = '<span class="badge badge-admin">Админ</span>';
-        } else if (isWorker) {
-            statusBadge = '<span class="badge badge-worker">Работник</span>';
-        } else {
-            statusBadge = '<span class="badge badge-user">Пользователь</span>';
-        }
-
-        item.innerHTML = `
-            <div class="user-item-header">
-                <div class="user-item-info">
-                    <div class="user-item-name">${user.full_name}</div>
-                    <div class="user-item-meta">
-                        <span class="user-item-username">@${user.username || 'без username'}</span>
-                        <span class="user-item-separator">•</span>
-                        <span class="user-item-date">${dateStr}</span>
-                    </div>
-                </div>
-                ${statusBadge}
-            </div>
-            <div class="user-item-actions">
-                ${!isAdmin ? `
-                    <button class="btn-toggle-worker ${isWorker ? 'active' : ''}" 
-                            onclick="toggleWorkerStatus(${user.telegram_id}, ${isWorker})">
-                        ${isWorker ? 'Отнять статус' : 'Назначить работником'}
-                    </button>
-                    <button class="btn-delete-user" onclick="deleteUser(${user.telegram_id}, '${user.full_name.replace(/'/g, "\\'")}')">
-                        <img src="svgg/delete.svg" alt="Delete" class="btn-icon"> Удалить работника
-                    </button>
-                ` : '<div class="admin-note">Администратор не может быть удален</div>'}
-            </div>
-        `;
-
-        usersList.appendChild(item);
-    });
-}
-
 async function deleteUser(telegramId, fullName) {
     const confirmMsg = `Удалить пользователя "${fullName}"?\n\nЭто действие нельзя отменить. Будут удалены:\n- Данные пользователя\n- Все его отметки\n- История опозданий`;
     
@@ -1037,6 +989,10 @@ async function deleteUser(telegramId, fullName) {
         confirmed = confirm(confirmMsg);
     }
     
+    if (confirmed) {
+        await performDeleteUser(telegramId);
+    }
+}
     if (confirmed) {
         await performDeleteUser(telegramId);
     }
