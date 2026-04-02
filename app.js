@@ -173,8 +173,13 @@ function showUserScreen() {
     debugLog('Showing user screen', 'info');
     const roleText = window.isWorker ? 'Работник' : 'Пользователь';
     document.getElementById('userRole').textContent = roleText;
-    document.getElementById('userNav').classList.remove('hidden');
-    document.getElementById('adminNav').classList.add('hidden');
+    
+    // Создаем навигацию для пользователя
+    const headerNav = document.getElementById('headerNav');
+    headerNav.innerHTML = `
+        <button class="nav-btn active" onclick="showUserTab('scan')">Сканировать</button>
+        <button class="nav-btn" onclick="showUserTab('history')">История</button>
+    `;
     
     // Показываем вкладку сканирования по умолчанию
     showUserTab('scan');
@@ -198,13 +203,20 @@ async function refreshUserStatus() {
 // Показать админ-панель
 function showAdminPanel() {
     debugLog('Showing admin panel', 'info');
-    document.getElementById('userRole').textContent = '👑 Администратор';
+    document.getElementById('userRole').textContent = 'Администратор';
     document.getElementById('userRole').classList.add('admin');
-    document.getElementById('userNav').classList.add('hidden');
-    document.getElementById('adminNav').classList.remove('hidden');
     
-    // Показываем вкладку логов по умолчанию
-    showAdminTab('logs');
+    // Создаем навигацию для админа
+    const headerNav = document.getElementById('headerNav');
+    headerNav.innerHTML = `
+        <button class="nav-btn active" onclick="showAdminTab('welcome')">Главная</button>
+        <button class="nav-btn" onclick="showAdminTab('logs')">Логи</button>
+        <button class="nav-btn" onclick="showAdminTab('users')">Пользователи</button>
+        <button class="nav-btn" onclick="showAdminTab('generate')">Генератор</button>
+    `;
+    
+    // Показываем приветствие по умолчанию
+    showAdminTab('welcome');
     
     // Подписка на обновления в реальном времени
     subscribeToAuthLogs();
@@ -213,8 +225,8 @@ function showAdminPanel() {
 // Переключение вкладок пользователя
 function showUserTab(tab) {
     // Обновляем кнопки навигации
-    document.querySelectorAll('#userNav .nav-btn').forEach(btn => btn.classList.remove('active'));
-    event?.target?.closest('.nav-btn')?.classList.add('active');
+    document.querySelectorAll('.header-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
+    event?.target?.classList.add('active');
     
     // Скрываем все вкладки
     document.getElementById('scanTab').classList.remove('active');
@@ -222,7 +234,7 @@ function showUserTab(tab) {
     
     if (tab === 'scan') {
         document.getElementById('scanTab').classList.add('active');
-        startQRScanner();
+        checkTodayAuth();
     } else if (tab === 'history') {
         document.getElementById('historyTab').classList.add('active');
         loadUserHistory();
@@ -234,15 +246,18 @@ function showUserTab(tab) {
 // Переключение вкладок админа
 function showAdminTab(tab) {
     // Обновляем кнопки навигации
-    document.querySelectorAll('#adminNav .nav-btn').forEach(btn => btn.classList.remove('active'));
-    event?.target?.closest('.nav-btn')?.classList.add('active');
+    document.querySelectorAll('.header-nav .nav-btn').forEach(btn => btn.classList.remove('active'));
+    event?.target?.classList.add('active');
     
     // Скрываем все вкладки
+    document.getElementById('adminWelcome').classList.add('hidden');
     document.getElementById('logsTab').classList.remove('active');
     document.getElementById('usersTab').classList.remove('active');
     document.getElementById('generateTab').classList.remove('active');
     
-    if (tab === 'logs') {
+    if (tab === 'welcome') {
+        document.getElementById('adminWelcome').classList.remove('hidden');
+    } else if (tab === 'logs') {
         document.getElementById('logsTab').classList.add('active');
         loadAuthLogs();
         calculateStats();
@@ -254,6 +269,40 @@ function showAdminTab(tab) {
     }
     
     if (tg) tg.HapticFeedback.impactOccurred('light');
+}
+
+// Проверка авторизации сегодня
+async function checkTodayAuth() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { data, error } = await supabase
+        .from('qr_auth_logs')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .gte('auth_time', today.toISOString())
+        .limit(1);
+    
+    if (error) {
+        debugLog('Error checking today auth: ' + error.message, 'error');
+        startQRScanner();
+        return;
+    }
+    
+    if (data && data.length > 0) {
+        // Уже сканировал сегодня
+        const readerEl = document.getElementById('qr-reader');
+        readerEl.innerHTML = `
+            <div class="success-day-message">
+                <div class="success-icon">✅</div>
+                <div class="success-title">Успешная авторизация!</div>
+                <div class="success-text">Хорошего рабочего дня!</div>
+            </div>
+        `;
+        debugLog('Already authorized today', 'info');
+    } else {
+        startQRScanner();
+    }
 }
 
 // Запуск QR-сканера
@@ -501,12 +550,15 @@ function renderAuthLogs(logs) {
             second: '2-digit'
         });
 
+        // Убираем префикс QR_AUTH_ из отображения
+        const displayQR = log.qr_code.replace('QR_AUTH_', '');
+
         item.innerHTML = `
             <div class="auth-item-header">
                 <span class="auth-item-name">${log.full_name}</span>
                 <span class="auth-item-time">${timeStr}</span>
             </div>
-            <div class="auth-item-qr">QR: ${log.qr_code}</div>
+            <div class="auth-item-qr">QR: ${displayQR}</div>
         `;
 
         authList.appendChild(item);
@@ -522,26 +574,29 @@ async function calculateStats() {
     if (error || !data) {
         document.getElementById('todayCount').textContent = '0';
         document.getElementById('weekCount').textContent = '0';
-        document.getElementById('totalCount').textContent = '0';
+        document.getElementById('monthCount').textContent = '0';
         return;
     }
 
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
     let todayCount = 0;
     let weekCount = 0;
+    let monthCount = 0;
 
     data.forEach(log => {
         const logTime = new Date(log.auth_time);
         if (logTime >= todayStart) todayCount++;
         if (logTime >= weekStart) weekCount++;
+        if (logTime >= monthStart) monthCount++;
     });
 
     document.getElementById('todayCount').textContent = todayCount;
     document.getElementById('weekCount').textContent = weekCount;
-    document.getElementById('totalCount').textContent = data.length;
+    document.getElementById('monthCount').textContent = monthCount;
 }
 
 // Подписка на обновления в реальном времени
@@ -588,13 +643,13 @@ async function generateQR() {
             throw new Error('QRCode library not loaded');
         }
         
-        // Генерируем QR код
+        // Генерируем QR код с темным фоном
         new QRCode(qrContainer, {
             text: qrData,
             width: 300,
             height: 300,
-            colorDark: '#000000',
-            colorLight: '#ffffff',
+            colorDark: '#e8eaed',
+            colorLight: '#1a1d26',
             correctLevel: QRCode.CorrectLevel.H
         });
         
