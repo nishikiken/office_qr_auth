@@ -993,10 +993,6 @@ async function deleteUser(telegramId, fullName) {
         await performDeleteUser(telegramId);
     }
 }
-    if (confirmed) {
-        await performDeleteUser(telegramId);
-    }
-}
 
 async function performDeleteUser(telegramId) {
     // Удаляем логи пользователя
