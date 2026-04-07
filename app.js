@@ -304,12 +304,21 @@ async function onScanSuccess(decodedText) {
 }
 
 async function sendAuthLog(qrCode) {
-    const fullName = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() 
-        || currentUser.username || 'Пользователь';
+    // Получаем display_name из БД
+    const { data: userData } = await supabase
+        .from('qr_auth_users')
+        .select('display_name, full_name')
+        .eq('telegram_id', currentUser.id)
+        .single();
+    
+    // Используем display_name если есть, иначе full_name
+    const displayName = userData?.display_name || userData?.full_name || 
+        `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim() || 
+        currentUser.username || 'Пользователь';
 
     const { error } = await supabase.from('qr_auth_logs').insert({
         user_id: currentUser.id,
-        full_name: fullName,
+        full_name: displayName,
         qr_code: qrCode,
         auth_time: new Date().toISOString()
     });
@@ -470,34 +479,68 @@ async function loadAttendanceLogs() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         
-        const { data } = await supabase
+        const { data: logs } = await supabase
             .from('qr_auth_logs')
             .select('*')
             .gte('auth_time', today.toISOString())
             .order('auth_time', { ascending: false });
 
-        if (!data || data.length === 0) {
+        if (!logs || logs.length === 0) {
             authList.innerHTML = '<div class="empty-state">Сегодня еще никто не отметился</div>';
             return;
         }
 
-        renderTodayAttendance(data);
+        // Получаем display_name для всех пользователей
+        const userIds = [...new Set(logs.map(log => log.user_id))];
+        const { data: users } = await supabase
+            .from('qr_auth_users')
+            .select('telegram_id, display_name, full_name')
+            .in('telegram_id', userIds);
+        
+        const userMap = {};
+        users?.forEach(user => {
+            userMap[user.telegram_id] = user.display_name || user.full_name;
+        });
+        
+        // Добавляем display_name к логам
+        logs.forEach(log => {
+            log.display_name = userMap[log.user_id] || log.full_name;
+        });
+
+        renderTodayAttendance(logs);
     } else {
         // Показываем список дней
         authList.innerHTML = '<p class="loading">Загрузка...</p>';
         
-        const { data } = await supabase
+        const { data: logs } = await supabase
             .from('qr_auth_logs')
             .select('*')
             .order('auth_time', { ascending: false })
             .limit(500);
 
-        if (!data || data.length === 0) {
+        if (!logs || logs.length === 0) {
             authList.innerHTML = '<div class="empty-state">Нет данных</div>';
             return;
         }
 
-        renderDaysList(data);
+        // Получаем display_name для всех пользователей
+        const userIds = [...new Set(logs.map(log => log.user_id))];
+        const { data: users } = await supabase
+            .from('qr_auth_users')
+            .select('telegram_id, display_name, full_name')
+            .in('telegram_id', userIds);
+        
+        const userMap = {};
+        users?.forEach(user => {
+            userMap[user.telegram_id] = user.display_name || user.full_name;
+        });
+        
+        // Добавляем display_name к логам
+        logs.forEach(log => {
+            log.display_name = userMap[log.user_id] || log.full_name;
+        });
+
+        renderDaysList(logs);
     }
 }
 
@@ -519,7 +562,7 @@ function renderTodayAttendance(logs) {
 
         item.innerHTML = `
             <div class="auth-item-header">
-                <span class="auth-item-name">${log.full_name}</span>
+                <span class="auth-item-name">${log.display_name || log.full_name}</span>
                 <span class="auth-item-time">${timeStr}</span>
             </div>
             <div class="auth-item-qr">QR: ${displayQR}</div>
@@ -565,7 +608,7 @@ function renderDaysList(logs) {
                         hour: '2-digit',
                         minute: '2-digit'
                     });
-                    return `<div class="day-detail-item">${log.full_name} — ${time}</div>`;
+                    return `<div class="day-detail-item">${log.display_name || log.full_name} — ${time}</div>`;
                 }).join('')}
             </div>
         `;
@@ -599,16 +642,28 @@ async function loadLateLogs() {
         dateFilter.setMonth(dateFilter.getMonth() - 1);
     }
     
-    const { data } = await supabase
+    const { data: logs } = await supabase
         .from('qr_auth_logs')
         .select('*')
         .gte('auth_time', dateFilter.toISOString())
         .order('auth_time', { ascending: false });
 
-    if (!data || data.length === 0) {
+    if (!logs || logs.length === 0) {
         lateList.innerHTML = '<div class="empty-state">Нет данных</div>';
         return;
     }
+    
+    // Получаем display_name для всех пользователей
+    const userIds = [...new Set(logs.map(log => log.user_id))];
+    const { data: users } = await supabase
+        .from('qr_auth_users')
+        .select('telegram_id, display_name, full_name')
+        .in('telegram_id', userIds);
+    
+    const userMap = {};
+    users?.forEach(user => {
+        userMap[user.telegram_id] = user.display_name || user.full_name;
+    });
     
     // Подсчитываем опоздания по пользователям
     const WORK_START_HOUR = 8;
@@ -616,7 +671,7 @@ async function loadLateLogs() {
     
     const lateByUser = {};
     
-    data.forEach(log => {
+    logs.forEach(log => {
         const authTime = new Date(log.auth_time);
         const hour = authTime.getHours();
         const minute = authTime.getMinutes();
@@ -624,7 +679,7 @@ async function loadLateLogs() {
         if (hour > WORK_START_HOUR || (hour === WORK_START_HOUR && minute > WORK_START_MINUTE)) {
             if (!lateByUser[log.user_id]) {
                 lateByUser[log.user_id] = {
-                    name: log.full_name,
+                    name: userMap[log.user_id] || log.full_name,
                     count: 0
                 };
             }
